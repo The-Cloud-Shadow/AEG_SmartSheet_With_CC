@@ -23,25 +23,34 @@ export function Toolbar() {
 
   const toolbarStyle: React.CSSProperties = {
     display: 'flex',
-    gap: '10px',
-    padding: '10px',
-    borderBottom: '1px solid #ddd',
-    backgroundColor: '#f5f5f5',
+    gap: '8px',
+    padding: '12px 20px',
+    borderBottom: '1px solid #dadce0',
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    minHeight: '48px',
   };
 
   const buttonStyle: React.CSSProperties = {
-    padding: '8px 16px',
-    border: '1px solid #ccc',
+    padding: '6px 12px',
+    border: '1px solid #dadce0',
     backgroundColor: '#fff',
     borderRadius: '4px',
     cursor: 'pointer',
+    fontSize: '12px',
+    color: '#3c4043',
+    fontWeight: '500',
+    fontFamily: 'Roboto, Arial, sans-serif',
+    transition: 'all 0.2s',
+    minHeight: '28px',
   };
 
   const disabledButtonStyle: React.CSSProperties = {
     ...buttonStyle,
-    backgroundColor: '#f0f0f0',
-    color: '#999',
+    backgroundColor: '#f8f9fa',
+    color: '#9aa0a6',
     cursor: 'not-allowed',
+    opacity: 0.6,
   };
 
   return (

@@ -7,11 +7,17 @@ export function Spreadsheet() {
   const { state, dispatch } = useSpreadsheet();
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
-  const numRows = 10; // Start with 10 rows for the MVP
+  const numRows = 50; // Larger sheet like Google Sheets
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if user is typing in an input or editing a cell
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.contentEditable === 'true') {
+        return;
+      }
+      
       if (e.ctrlKey) {
         switch (e.key.toLowerCase()) {
           case 'z':
@@ -26,8 +32,11 @@ export function Spreadsheet() {
             e.preventDefault();
             dispatch({ type: 'REDO' });
             break;
-          case 'delete':
-          case 'backspace':
+        }
+      } else {
+        switch (e.key) {
+          case 'Delete':
+          case 'Backspace':
             e.preventDefault();
             if (state.selectedCells.size > 0) {
               dispatch({ type: 'DELETE_SELECTED_CELLS' });
@@ -71,57 +80,85 @@ export function Spreadsheet() {
 
   const containerStyle: React.CSSProperties = {
     width: '100%',
-    maxWidth: '1200px',
     margin: '0 auto',
+    height: 'calc(100vh - 140px)',
+    overflow: 'auto',
+    border: '1px solid #c0c0c0',
+    backgroundColor: '#fff',
   };
 
   const tableStyle: React.CSSProperties = {
-    borderCollapse: 'collapse',
+    borderCollapse: 'separate',
+    borderSpacing: '0',
     width: '100%',
     backgroundColor: '#fff',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    fontSize: '13px',
+    fontFamily: 'Roboto, Arial, sans-serif',
   };
 
   const headerStyle: React.CSSProperties = {
-    backgroundColor: '#f0f0f0',
-    border: '1px solid #ddd',
-    padding: '12px 8px',
-    fontWeight: 'bold',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #dadce0',
+    borderRight: '1px solid #dadce0',
+    borderBottom: '2px solid #dadce0',
+    padding: '8px 12px',
+    fontWeight: '500',
     position: 'sticky',
     top: 0,
+    zIndex: 10,
+    color: '#3c4043',
+    textAlign: 'center',
+    fontSize: '12px',
+    height: '40px',
+    lineHeight: '24px',
   };
 
   const rowHeaderStyle: React.CSSProperties = {
-    backgroundColor: '#f9f9f9',
-    border: '1px solid #ddd',
-    padding: '8px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #dadce0',
+    borderRight: '2px solid #dadce0',
+    padding: '0',
     textAlign: 'center',
-    minWidth: '50px',
+    width: '60px',
+    minWidth: '60px',
+    height: '32px',
+    fontSize: '12px',
+    color: '#5f6368',
+    fontWeight: '400',
+    position: 'sticky',
+    left: 0,
+    zIndex: 5,
   };
 
   const archiveButtonsStyle: React.CSSProperties = {
-    margin: '10px 0',
+    margin: '12px 20px',
     display: 'flex',
-    gap: '10px',
+    gap: '8px',
+    alignItems: 'center',
   };
 
   const buttonStyle: React.CSSProperties = {
-    padding: '8px 16px',
-    border: '1px solid #ccc',
-    backgroundColor: '#fff',
+    padding: '6px 12px',
+    border: '1px solid #dadce0',
+    backgroundColor: '#f8f9fa',
     borderRadius: '4px',
     cursor: 'pointer',
+    fontSize: '12px',
+    color: '#3c4043',
+    fontWeight: '500',
+    transition: 'all 0.2s',
   };
 
   const disabledButtonStyle: React.CSSProperties = {
     ...buttonStyle,
     backgroundColor: '#f0f0f0',
-    color: '#999',
+    color: '#9aa0a6',
     cursor: 'not-allowed',
+    opacity: 0.6,
   };
 
   return (
-    <div style={containerStyle}>
+    <div>
       <Toolbar />
       
       <div style={archiveButtonsStyle}>
@@ -141,7 +178,8 @@ export function Spreadsheet() {
         </button>
       </div>
 
-      <table style={tableStyle}>
+      <div style={containerStyle}>
+        <table style={tableStyle}>
         <thead>
           <tr>
             <th style={headerStyle}>
@@ -203,7 +241,8 @@ export function Spreadsheet() {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }

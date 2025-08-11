@@ -25,27 +25,22 @@ export function Cell({ row, column, cellId }: CellProps) {
     }
   }, [isEditing]);
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (column.readOnly || column.type === 'formula') return;
     
-    if (!isSelected) {
-      dispatch({ type: 'SELECT_CELLS', payload: [cellId] });
+    dispatch({ type: 'SELECT_CELLS', payload: [cellId] });
+    
+    // Start editing immediately on single click (like Google Sheets)
+    if (!isEditing) {
+      setIsEditing(true);
+      setEditValue(value);
     }
   };
 
-  const handleDoubleClick = () => {
-    if (column.readOnly || column.type === 'formula') return;
-    
-    setIsEditing(true);
-    setEditValue(value);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      commitEdit();
-    } else if (e.key === 'Escape') {
-      cancelEdit();
-    }
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Double click is handled by single click now
   };
 
   const commitEdit = () => {
@@ -62,21 +57,46 @@ export function Cell({ row, column, cellId }: CellProps) {
   };
 
   const handleBlur = () => {
-    commitEdit();
+    if (isEditing) {
+      commitEdit();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
   };
 
   const isReadOnly = column.readOnly || column.type === 'formula';
   const cellStyle: React.CSSProperties = {
-    border: '1px solid #ddd',
-    padding: '8px',
-    minWidth: '100px',
-    minHeight: '30px',
-    backgroundColor: isSelected ? '#e3f2fd' : (isReadOnly ? '#f9f9f9' : '#fff'),
-    cursor: isReadOnly ? 'default' : 'pointer',
+    border: '1px solid #dadce0',
+    borderRight: '1px solid #dadce0',
+    borderBottom: '1px solid #dadce0',
+    padding: '6px 8px',
+    width: '120px',
+    minWidth: '120px',
+    maxWidth: '200px',
+    height: '32px',
+    backgroundColor: isSelected ? '#c2e7ff' : (isReadOnly ? '#f8f9fa' : '#fff'),
+    cursor: isReadOnly ? 'default' : 'cell',
     textDecoration: isArchived ? 'line-through' : 'none',
     opacity: isArchived ? 0.6 : 1,
     position: 'relative',
     fontStyle: column.type === 'formula' ? 'italic' : 'normal',
+    fontSize: '13px',
+    color: '#3c4043',
+    fontFamily: 'Roboto, Arial, sans-serif',
+    lineHeight: '20px',
+    verticalAlign: 'top',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.1s',
   };
 
   if (isEditing && column.type === 'dropdown') {
@@ -88,7 +108,16 @@ export function Cell({ row, column, cellId }: CellProps) {
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          style={{ width: '100%', border: 'none', outline: 'none' }}
+          style={{ 
+            width: '100%', 
+            border: 'none', 
+            outline: 'none', 
+            backgroundColor: 'transparent',
+            fontSize: '13px',
+            fontFamily: 'Roboto, Arial, sans-serif',
+            color: '#3c4043',
+            padding: '0'
+          }}
         >
           <option value="">Select...</option>
           {column.dropdownOptions?.map((option) => (
@@ -111,7 +140,16 @@ export function Cell({ row, column, cellId }: CellProps) {
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          style={{ width: '100%', border: 'none', outline: 'none' }}
+          style={{ 
+            width: '100%', 
+            border: 'none', 
+            outline: 'none', 
+            backgroundColor: 'transparent',
+            fontSize: '13px',
+            fontFamily: 'Roboto, Arial, sans-serif',
+            color: '#3c4043',
+            padding: '0'
+          }}
         />
       </td>
     );
