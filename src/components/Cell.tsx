@@ -28,7 +28,7 @@ export function Cell({ row, column, cellId }: CellProps) {
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (column.readOnly || column.type === 'formula') return;
+    if (column.readOnly) return; // Only block if column is explicitly locked
     
     dispatch({ type: 'SELECT_CELLS', payload: [cellId] });
     
@@ -92,7 +92,7 @@ export function Cell({ row, column, cellId }: CellProps) {
     }
   };
 
-  const isReadOnly = column.readOnly || column.type === 'formula';
+  const isReadOnly = column.readOnly; // Only read-only if explicitly locked
   const isFormulaCell = cell?.isFormula || column.type === 'formula';
   const cellStyle: React.CSSProperties = {
     border: '1px solid #dadce0',

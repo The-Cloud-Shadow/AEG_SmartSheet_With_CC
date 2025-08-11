@@ -70,51 +70,53 @@ const calculateInitialFormulas = (cells: { [cellId: string]: CellData }, columns
 // Function to calculate individual cell formulas
 const calculateCellFormula = (formula: string, row: number, cells: { [cellId: string]: CellData }): string | null => {
   try {
+    // Helper function to resolve a reference (could be A1 or just A)
+    const resolveReference = (ref: string): number => {
+      ref = ref.trim();
+      if (ref.match(/^[A-Z]+\d+$/)) {
+        // It's a full cell reference like A1
+        const cell = cells[ref];
+        return cell && !isNaN(Number(cell.value)) ? Number(cell.value) : 0;
+      } else if (ref.match(/^[A-Z]+$/)) {
+        // It's a column reference like A, resolve to current row
+        const cellId = `${ref}${row}`;
+        const cell = cells[cellId];
+        return cell && !isNaN(Number(cell.value)) ? Number(cell.value) : 0;
+      } else if (!isNaN(Number(ref))) {
+        // It's a number
+        return Number(ref);
+      }
+      return 0;
+    };
+
     // Simple formula parsing - supports basic operations
     if (formula.includes('/')) {
-      const [sourceCol, divisor] = formula.split('/');
-      const sourceCellId = `${sourceCol.trim()}${row}`;
-      const sourceCell = cells[sourceCellId];
+      const [left, right] = formula.split('/').map(p => p.trim());
+      const leftVal = resolveReference(left);
+      const rightVal = resolveReference(right);
       
-      if (sourceCell && sourceCell.value && !isNaN(Number(sourceCell.value))) {
-        const result = Number(sourceCell.value) / Number(divisor.trim());
-        return result.toString();
+      if (rightVal !== 0) {
+        return (leftVal / rightVal).toString();
       }
     } else if (formula.includes('+')) {
       const parts = formula.split('+').map(p => p.trim());
       let sum = 0;
       for (const part of parts) {
-        if (part.match(/^[A-Z]\d+$/)) {
-          // It's a cell reference
-          const cell = cells[part];
-          if (cell && !isNaN(Number(cell.value))) {
-            sum += Number(cell.value);
-          }
-        } else if (!isNaN(Number(part))) {
-          // It's a number
-          sum += Number(part);
-        }
+        sum += resolveReference(part);
       }
       return sum.toString();
     } else if (formula.includes('*')) {
       const [left, right] = formula.split('*').map(p => p.trim());
-      let leftVal = 0, rightVal = 0;
-      
-      if (left.match(/^[A-Z]\d+$/)) {
-        const cell = cells[left];
-        leftVal = cell && !isNaN(Number(cell.value)) ? Number(cell.value) : 0;
-      } else {
-        leftVal = Number(left) || 0;
-      }
-      
-      if (right.match(/^[A-Z]\d+$/)) {
-        const cell = cells[right];
-        rightVal = cell && !isNaN(Number(cell.value)) ? Number(cell.value) : 0;
-      } else {
-        rightVal = Number(right) || 0;
-      }
+      const leftVal = resolveReference(left);
+      const rightVal = resolveReference(right);
       
       return (leftVal * rightVal).toString();
+    } else if (formula.includes('-')) {
+      const [left, right] = formula.split('-').map(p => p.trim());
+      const leftVal = resolveReference(left);
+      const rightVal = resolveReference(right);
+      
+      return (leftVal - rightVal).toString();
     }
   } catch (error) {
     console.error('Formula calculation error:', error);
@@ -166,22 +168,17 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
           const formula = column.formula!;
           
           try {
-            // Simple formula parsing for A/100 pattern
-            if (formula.includes('/')) {
-              const [sourceCol, divisor] = formula.split('/');
-              const sourceCellId = `${sourceCol.trim()}${row}`;
-              const sourceCell = cells[sourceCellId];
-              
-              if (sourceCell && sourceCell.value && !isNaN(Number(sourceCell.value))) {
-                const result = Number(sourceCell.value) / Number(divisor.trim());
-                newCells[targetCellId] = {
-                  id: targetCellId,
-                  value: result.toString(),
-                  formula: formula,
-                  row: row,
-                  column: column.id
-                };
-              }
+            // Use the enhanced formula calculation function
+            const result = calculateCellFormula(formula, row, cells);
+            if (result !== null) {
+              newCells[targetCellId] = {
+                id: targetCellId,
+                value: result,
+                formula: formula,
+                isFormula: true,
+                row: row,
+                column: column.id
+              };
             }
           } catch (error) {
             console.error('Formula calculation error:', error);
@@ -375,23 +372,24 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
           : col
       );
       
-      // If setting a formula, recalculate all cells in that column
+      // If setting a formula, recalculate all cells in that column for all rows
       let newCells = { ...state.cells };
       if (formula) {
-        Object.keys(newCells).forEach(cellId => {
-          const cell = newCells[cellId];
-          if (cell.column === columnId) {
-            const calculatedValue = calculateCellFormula(formula, cell.row, newCells);
-            if (calculatedValue !== null) {
-              newCells[cellId] = {
-                ...cell,
-                value: calculatedValue,
-                formula,
-                isFormula: true
-              };
-            }
+        // Create formula cells for all rows (1-50)
+        for (let row = 1; row <= 50; row++) {
+          const targetCellId = `${columnId}${row}`;
+          const calculatedValue = calculateCellFormula(formula, row, newCells);
+          if (calculatedValue !== null) {
+            newCells[targetCellId] = {
+              id: targetCellId,
+              value: calculatedValue,
+              formula,
+              isFormula: true,
+              row: row,
+              column: columnId
+            };
           }
-        });
+        }
       }
       
       const newState = { ...state, columns: newColumns, cells: newCells };
