@@ -76,6 +76,7 @@ const initialState: SpreadsheetState = {
   history: [],
   historyIndex: -1,
   selectedCells: new Set(),
+  showArchivedRows: true,
 };
 
 function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction): SpreadsheetState {
@@ -237,7 +238,8 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
     }
 
     case 'SELECT_CELLS': {
-      const newSelectedCells = new Set([...state.selectedCells, ...action.payload]);
+      // Replace selection instead of adding to it (like Google Sheets)
+      const newSelectedCells = new Set(action.payload);
       return { ...state, selectedCells: newSelectedCells };
     }
 
@@ -274,6 +276,17 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
     case 'APPLY_COLUMN_FORMULA': {
       // Implementation will come later
       return state;
+    }
+
+    case 'ADD_COLUMN': {
+      const newColumn = action.payload;
+      const newColumns = [...state.columns, newColumn];
+      const newState = { ...state, columns: newColumns };
+      return saveToHistory(newState);
+    }
+
+    case 'TOGGLE_ARCHIVED_ROWS_VISIBILITY': {
+      return { ...state, showArchivedRows: !state.showArchivedRows };
     }
 
     default:

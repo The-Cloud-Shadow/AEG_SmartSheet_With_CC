@@ -217,7 +217,9 @@ export function Spreadsheet() {
           </tr>
         </thead>
         <tbody>
-          {Array.from({ length: numRows }, (_, i) => i + 1).map((row) => (
+          {Array.from({ length: numRows }, (_, i) => i + 1)
+            .filter(row => state.showArchivedRows || !state.archivedRows.has(row))
+            .map((row) => (
             <tr key={row}>
               <td style={rowHeaderStyle}>
                 <input

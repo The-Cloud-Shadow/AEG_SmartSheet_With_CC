@@ -22,6 +22,7 @@ export interface SpreadsheetState {
   history: SpreadsheetState[];
   historyIndex: number;
   selectedCells: Set<string>;
+  showArchivedRows: boolean;
 }
 
 export type SpreadsheetAction =
@@ -34,4 +35,6 @@ export type SpreadsheetAction =
   | { type: 'DESELECT_CELLS'; payload: string[] }
   | { type: 'UNDO' }
   | { type: 'REDO' }
-  | { type: 'APPLY_COLUMN_FORMULA'; payload: { column: string; formula: string } };
+  | { type: 'APPLY_COLUMN_FORMULA'; payload: { column: string; formula: string } }
+  | { type: 'ADD_COLUMN'; payload: ColumnConfig }
+  | { type: 'TOGGLE_ARCHIVED_ROWS_VISIBILITY' };
