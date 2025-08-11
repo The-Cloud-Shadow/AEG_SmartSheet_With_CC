@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useSpreadsheet } from '../context/SpreadsheetContext';
 import { Cell } from './Cell';
 import { Toolbar } from './Toolbar';
+import { ColumnConfig } from '../types';
 
 export function Spreadsheet() {
   const { state, dispatch } = useSpreadsheet();
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [activeColumnMenu, setActiveColumnMenu] = useState<string | null>(null);
 
   const numRows = 50; // Larger sheet like Google Sheets
 
@@ -86,6 +88,39 @@ export function Spreadsheet() {
     e.preventDefault();
     dispatch({ type: 'TOGGLE_COLUMN_LOCK', payload: { columnId } });
   };
+
+  const handleColumnMenuToggle = (columnId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveColumnMenu(activeColumnMenu === columnId ? null : columnId);
+  };
+
+  const handleEditFormula = (columnId: string) => {
+    const column = state.columns.find(col => col.id === columnId);
+    const currentFormula = column?.formula || '';
+    const newFormula = prompt('Enter formula (without =):', currentFormula);
+    
+    if (newFormula !== null) {
+      dispatch({ 
+        type: 'SET_COLUMN_FORMULA', 
+        payload: { columnId, formula: newFormula.trim() || undefined } 
+      });
+    }
+    setActiveColumnMenu(null);
+  };
+
+  const handleLockColumn = (columnId: string) => {
+    dispatch({ type: 'TOGGLE_COLUMN_LOCK', payload: { columnId } });
+    setActiveColumnMenu(null);
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setActiveColumnMenu(null);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const containerStyle: React.CSSProperties = {
     width: '100%',
@@ -209,30 +244,55 @@ export function Spreadsheet() {
                 key={column.id} 
                 style={{
                   ...headerStyle,
-                  backgroundColor: column.readOnly ? '#f0f0f0' : headerStyle.backgroundColor
+                  backgroundColor: column.readOnly ? '#f0f0f0' : headerStyle.backgroundColor,
+                  position: 'relative'
                 }}
                 onContextMenu={(e) => handleColumnLockToggle(column.id, e)}
                 title={`${column.label}${column.readOnly ? ' (Locked)' : ''} - Right-click to ${column.readOnly ? 'unlock' : 'lock'}`}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '5px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                     {column.label}
                     {column.readOnly && <span style={{ fontSize: '10px' }}>🔒</span>}
                     {column.type === 'formula' && <span style={{ fontSize: '10px', color: '#1a73e8' }}>f(x)</span>}
-                  </span>
-                  <button
-                    onClick={() => handleSort(column.id, true)}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => handleSort(column.id, false)}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
-                  >
-                    ↓
-                  </button>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <button
+                      onClick={() => handleSort(column.id, true)}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      onClick={() => handleSort(column.id, false)}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      onClick={(e) => handleColumnMenuToggle(column.id, e)}
+                      style={{ 
+                        border: 'none', 
+                        background: 'none', 
+                        cursor: 'pointer', 
+                        fontSize: '12px', 
+                        padding: '2px 4px',
+                        borderRadius: '2px',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                    >
+                      ⋮
+                    </button>
+                  </div>
                 </div>
+                {activeColumnMenu === column.id && (
+                  <ColumnDropdownMenu 
+                    column={column}
+                    onEditFormula={() => handleEditFormula(column.id)}
+                    onLockToggle={() => handleLockColumn(column.id)}
+                  />
+                )}
               </th>
             ))}
           </tr>
@@ -266,6 +326,68 @@ export function Spreadsheet() {
         </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+interface ColumnDropdownMenuProps {
+  column: ColumnConfig;
+  onEditFormula: () => void;
+  onLockToggle: () => void;
+}
+
+function ColumnDropdownMenu({ column, onEditFormula, onLockToggle }: ColumnDropdownMenuProps) {
+  const menuStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '100%',
+    right: '0',
+    backgroundColor: '#fff',
+    border: '1px solid #dadce0',
+    borderRadius: '4px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+    zIndex: 1000,
+    minWidth: '150px',
+    padding: '4px 0',
+  };
+
+  const menuItemStyle: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    padding: '8px 16px',
+    border: 'none',
+    background: 'none',
+    textAlign: 'left',
+    fontSize: '13px',
+    color: '#3c4043',
+    cursor: 'pointer',
+    fontFamily: 'Roboto, Arial, sans-serif',
+  };
+
+  const menuItemHoverStyle: React.CSSProperties = {
+    ...menuItemStyle,
+    backgroundColor: '#f8f9fa',
+  };
+
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  return (
+    <div style={menuStyle}>
+      <button
+        style={hoveredItem === 'formula' ? menuItemHoverStyle : menuItemStyle}
+        onMouseEnter={() => setHoveredItem('formula')}
+        onMouseLeave={() => setHoveredItem(null)}
+        onClick={onEditFormula}
+      >
+        🔧 Edit Formula
+      </button>
+      <button
+        style={hoveredItem === 'lock' ? menuItemHoverStyle : menuItemStyle}
+        onMouseEnter={() => setHoveredItem('lock')}
+        onMouseLeave={() => setHoveredItem(null)}
+        onClick={onLockToggle}
+      >
+        {column.readOnly ? '🔓 Unlock Column' : '🔒 Lock Column'}
+      </button>
     </div>
   );
 }
