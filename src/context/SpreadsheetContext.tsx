@@ -124,16 +124,54 @@ const calculateCellFormula = (formula: string, row: number, cells: { [cellId: st
   return null;
 };
 
-const initialCellsWithFormulas = calculateInitialFormulas(sampleCells, initialColumns);
+// Load data from localStorage or use defaults
+const loadFromStorage = (): SpreadsheetState => {
+  try {
+    const savedData = localStorage.getItem('aeg-spreadsheet-data');
+    if (savedData) {
+      const parsed = JSON.parse(savedData);
+      return {
+        cells: parsed.cells || {},
+        archivedRows: new Set(parsed.archivedRows || []),
+        columns: parsed.columns || initialColumns,
+        history: [],
+        historyIndex: -1,
+        selectedCells: new Set(),
+        showArchivedRows: parsed.showArchivedRows !== undefined ? parsed.showArchivedRows : true,
+      };
+    }
+  } catch (error) {
+    console.error('Error loading from localStorage:', error);
+  }
+  
+  // Default state
+  const initialCellsWithFormulas = calculateInitialFormulas(sampleCells, initialColumns);
+  return {
+    cells: initialCellsWithFormulas,
+    archivedRows: new Set(),
+    columns: initialColumns,
+    history: [],
+    historyIndex: -1,
+    selectedCells: new Set(),
+    showArchivedRows: true,
+  };
+};
 
-const initialState: SpreadsheetState = {
-  cells: initialCellsWithFormulas,
-  archivedRows: new Set(),
-  columns: initialColumns,
-  history: [],
-  historyIndex: -1,
-  selectedCells: new Set(),
-  showArchivedRows: true,
+const initialState: SpreadsheetState = loadFromStorage();
+
+// Save data to localStorage
+const saveToStorage = (state: SpreadsheetState) => {
+  try {
+    const dataToSave = {
+      cells: state.cells,
+      archivedRows: Array.from(state.archivedRows),
+      columns: state.columns,
+      showArchivedRows: state.showArchivedRows,
+    };
+    localStorage.setItem('aeg-spreadsheet-data', JSON.stringify(dataToSave));
+  } catch (error) {
+    console.error('Error saving to localStorage:', error);
+  }
 };
 
 function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction): SpreadsheetState {
@@ -218,12 +256,14 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
       const cellsWithFormulas = calculateFormulas(newCells, state.columns);
       
       const newState = { ...state, cells: cellsWithFormulas };
+      saveToStorage(newState);
       return saveToHistory(newState);
     }
 
     case 'ARCHIVE_ROWS': {
       const newArchivedRows = new Set([...state.archivedRows, ...action.payload]);
       const newState = { ...state, archivedRows: newArchivedRows };
+      saveToStorage(newState);
       return saveToHistory(newState);
     }
 
@@ -231,6 +271,7 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
       const newArchivedRows = new Set(state.archivedRows);
       action.payload.forEach(row => newArchivedRows.delete(row));
       const newState = { ...state, archivedRows: newArchivedRows };
+      saveToStorage(newState);
       return saveToHistory(newState);
     }
 
@@ -283,6 +324,7 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
       const cellsWithFormulas = calculateFormulas(newCellsMap, state.columns);
       
       const newState = { ...state, cells: cellsWithFormulas };
+      saveToStorage(newState);
       return saveToHistory(newState);
     }
 
@@ -294,6 +336,7 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
         }
       });
       const newState = { ...state, cells: newCells, selectedCells: new Set<string>() };
+      saveToStorage(newState);
       return saveToHistory(newState);
     }
 
@@ -342,11 +385,14 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
       const newColumn = action.payload;
       const newColumns = [...state.columns, newColumn];
       const newState = { ...state, columns: newColumns };
+      saveToStorage(newState);
       return saveToHistory(newState);
     }
 
     case 'TOGGLE_ARCHIVED_ROWS_VISIBILITY': {
-      return { ...state, showArchivedRows: !state.showArchivedRows };
+      const newState = { ...state, showArchivedRows: !state.showArchivedRows };
+      saveToStorage(newState);
+      return newState;
     }
 
     case 'TOGGLE_COLUMN_LOCK': {
@@ -357,6 +403,7 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
           : col
       );
       const newState = { ...state, columns: newColumns };
+      saveToStorage(newState);
       return saveToHistory(newState);
     }
 
@@ -393,6 +440,7 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
       }
       
       const newState = { ...state, columns: newColumns, cells: newCells };
+      saveToStorage(newState);
       return saveToHistory(newState);
     }
 
