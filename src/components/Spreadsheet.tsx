@@ -97,12 +97,16 @@ export function Spreadsheet() {
   const handleEditFormula = (columnId: string) => {
     const column = state.columns.find(col => col.id === columnId);
     const currentFormula = column?.formula || '';
+    console.log(`Editing formula for column ${columnId}, current formula: "${currentFormula}"`);
     const newFormula = prompt('Enter formula (without =):', currentFormula);
     
+    console.log(`User entered: "${newFormula}"`);
     if (newFormula !== null) {
+      const trimmedFormula = newFormula.trim() || undefined;
+      console.log(`Dispatching SET_COLUMN_FORMULA with formula: "${trimmedFormula}"`);
       dispatch({ 
         type: 'SET_COLUMN_FORMULA', 
-        payload: { columnId, formula: newFormula.trim() || undefined } 
+        payload: { columnId, formula: trimmedFormula } 
       });
     }
     setActiveColumnMenu(null);

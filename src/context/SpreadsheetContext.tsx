@@ -89,39 +89,114 @@ const calculateCellFormula = (formula: string, row: number, cells: { [cellId: st
       return 0;
     };
 
-    // Simple formula parsing - supports basic operations
-    if (formula.includes('/')) {
-      const [left, right] = formula.split('/').map(p => p.trim());
-      const leftVal = resolveReference(left);
-      const rightVal = resolveReference(right);
-      
-      if (rightVal !== 0) {
-        return (leftVal / rightVal).toString();
-      }
-    } else if (formula.includes('+')) {
-      const parts = formula.split('+').map(p => p.trim());
-      let sum = 0;
-      for (const part of parts) {
-        sum += resolveReference(part);
-      }
-      return sum.toString();
-    } else if (formula.includes('*')) {
-      const [left, right] = formula.split('*').map(p => p.trim());
-      const leftVal = resolveReference(left);
-      const rightVal = resolveReference(right);
-      
-      return (leftVal * rightVal).toString();
-    } else if (formula.includes('-')) {
-      const [left, right] = formula.split('-').map(p => p.trim());
-      const leftVal = resolveReference(left);
-      const rightVal = resolveReference(right);
-      
-      return (leftVal - rightVal).toString();
+    // Enhanced formula parsing with proper order of operations
+    // First replace all cell/column references with their values
+    let expression = formula;
+    
+    // Find all references (A1, B2, A, B, etc.) and replace with values
+    const references = expression.match(/[A-Z]+\d*\b/g) || [];
+    for (const ref of references) {
+      const value = resolveReference(ref);
+      expression = expression.replace(new RegExp(`\\b${ref}\\b`, 'g'), value.toString());
+    }
+    
+    console.log(`Formula: "${formula}" -> Expression: "${expression}"`);
+    
+    // Now evaluate the mathematical expression with proper order of operations
+    try {
+      // Simple evaluation supporting +, -, *, / with left-to-right evaluation
+      // Handle multiplication and division first, then addition and subtraction
+      let result = evaluateExpression(expression);
+      return result.toString();
+    } catch (evalError) {
+      console.error('Expression evaluation error:', evalError);
+      return null;
     }
   } catch (error) {
     console.error('Formula calculation error:', error);
   }
   return null;
+};
+
+// Simple expression evaluator that handles order of operations
+const evaluateExpression = (expr: string): number => {
+  // Remove all spaces
+  expr = expr.replace(/\s/g, '');
+  
+  // Handle multiplication and division first (left to right)
+  while (expr.includes('*') || expr.includes('/')) {
+    // Find the first * or /
+    const multIndex = expr.indexOf('*');
+    const divIndex = expr.indexOf('/');
+    
+    let opIndex = -1;
+    let operator = '';
+    
+    if (multIndex !== -1 && (divIndex === -1 || multIndex < divIndex)) {
+      opIndex = multIndex;
+      operator = '*';
+    } else if (divIndex !== -1) {
+      opIndex = divIndex;
+      operator = '/';
+    }
+    
+    if (opIndex === -1) break;
+    
+    // Find the operands
+    let leftStart = opIndex - 1;
+    while (leftStart > 0 && /[\d.]/.test(expr[leftStart - 1])) {
+      leftStart--;
+    }
+    
+    let rightEnd = opIndex + 1;
+    while (rightEnd < expr.length && /[\d.]/.test(expr[rightEnd])) {
+      rightEnd++;
+    }
+    
+    const leftVal = parseFloat(expr.substring(leftStart, opIndex));
+    const rightVal = parseFloat(expr.substring(opIndex + 1, rightEnd));
+    
+    const result = operator === '*' ? leftVal * rightVal : leftVal / rightVal;
+    
+    expr = expr.substring(0, leftStart) + result.toString() + expr.substring(rightEnd);
+  }
+  
+  // Handle addition and subtraction (left to right)
+  while (expr.includes('+') || expr.includes('-')) {
+    // Find the first + or - (but not at the beginning for negative numbers)
+    let opIndex = -1;
+    let operator = '';
+    
+    for (let i = 1; i < expr.length; i++) {
+      if (expr[i] === '+' || expr[i] === '-') {
+        opIndex = i;
+        operator = expr[i];
+        break;
+      }
+    }
+    
+    if (opIndex === -1) break;
+    
+    // Find the operands
+    let leftStart = opIndex - 1;
+    while (leftStart > 0 && /[\d.]/.test(expr[leftStart - 1])) {
+      leftStart--;
+    }
+    
+    let rightEnd = opIndex + 1;
+    while (rightEnd < expr.length && /[\d.]/.test(expr[rightEnd])) {
+      rightEnd++;
+    }
+    
+    const leftVal = parseFloat(expr.substring(leftStart, opIndex));
+    const rightVal = parseFloat(expr.substring(opIndex + 1, rightEnd));
+    
+    const result = operator === '+' ? leftVal + rightVal : leftVal - rightVal;
+    
+    expr = expr.substring(0, leftStart) + result.toString() + expr.substring(rightEnd);
+  }
+  
+  return parseFloat(expr);
 };
 
 // Load data from localStorage or use defaults
@@ -409,6 +484,8 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
 
     case 'SET_COLUMN_FORMULA': {
       const { columnId, formula } = action.payload;
+      console.log(`Setting formula for column ${columnId}: "${formula}"`);
+      
       const newColumns = state.columns.map(col => 
         col.id === columnId 
           ? { 
@@ -419,19 +496,37 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
           : col
       );
       
-      // If setting a formula, recalculate all cells in that column for all rows
+      // Start with existing cells, but clear any existing cells in this column if removing formula
       let newCells = { ...state.cells };
+      
       if (formula) {
-        // Create formula cells for all rows (1-50)
+        // Setting/updating a formula - recalculate all cells in that column for all rows
+        console.log(`Calculating formula "${formula}" for column ${columnId}`);
         for (let row = 1; row <= 50; row++) {
           const targetCellId = `${columnId}${row}`;
           const calculatedValue = calculateCellFormula(formula, row, newCells);
+          console.log(`Row ${row}: ${formula} = ${calculatedValue}`);
           if (calculatedValue !== null) {
             newCells[targetCellId] = {
               id: targetCellId,
               value: calculatedValue,
               formula,
               isFormula: true,
+              row: row,
+              column: columnId
+            };
+          }
+        }
+      } else {
+        // Removing formula - clear formula cells and convert to regular cells
+        console.log(`Removing formula from column ${columnId}`);
+        for (let row = 1; row <= 50; row++) {
+          const targetCellId = `${columnId}${row}`;
+          if (newCells[targetCellId] && newCells[targetCellId].isFormula) {
+            // Keep the calculated value but remove formula properties
+            newCells[targetCellId] = {
+              id: targetCellId,
+              value: newCells[targetCellId].value,
               row: row,
               column: columnId
             };
