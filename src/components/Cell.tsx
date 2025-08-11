@@ -12,6 +12,7 @@ export function Cell({ row, column, cellId }: CellProps) {
   const { state, dispatch } = useSpreadsheet();
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const [isFormula, setIsFormula] = useState(false);
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
 
   const cell = state.cells[cellId];
@@ -34,7 +35,10 @@ export function Cell({ row, column, cellId }: CellProps) {
     // Start editing immediately on single click (like Google Sheets)
     if (!isEditing) {
       setIsEditing(true);
-      setEditValue(value);
+      // Show the formula in edit mode if it's a formula cell
+      const displayValue = cell?.isFormula && cell?.formula ? `=${cell.formula}` : value;
+      setEditValue(displayValue);
+      setIsFormula(cell?.isFormula || false);
     }
   };
 
@@ -44,9 +48,25 @@ export function Cell({ row, column, cellId }: CellProps) {
   };
 
   const commitEdit = () => {
+    let finalValue = editValue;
+    let isFormulaCell = false;
+    let formula = undefined;
+    
+    // Check if the user entered a formula (starts with =)
+    if (editValue.startsWith('=')) {
+      isFormulaCell = true;
+      formula = editValue.substring(1); // Remove the = sign
+      finalValue = editValue; // Keep the = for now, will be calculated in reducer
+    }
+    
     dispatch({
       type: 'UPDATE_CELL',
-      payload: { cellId, value: editValue }
+      payload: { 
+        cellId, 
+        value: isFormulaCell ? finalValue : editValue,
+        formula: isFormulaCell ? formula : undefined,
+        isFormula: isFormulaCell
+      }
     });
     setIsEditing(false);
   };
@@ -73,6 +93,7 @@ export function Cell({ row, column, cellId }: CellProps) {
   };
 
   const isReadOnly = column.readOnly || column.type === 'formula';
+  const isFormulaCell = cell?.isFormula || column.type === 'formula';
   const cellStyle: React.CSSProperties = {
     border: '1px solid #dadce0',
     borderRight: '1px solid #dadce0',
@@ -82,14 +103,14 @@ export function Cell({ row, column, cellId }: CellProps) {
     minWidth: '120px',
     maxWidth: '200px',
     height: '32px',
-    backgroundColor: isSelected ? '#c2e7ff' : (isReadOnly ? '#f8f9fa' : '#fff'),
+    backgroundColor: isSelected ? '#c2e7ff' : (isReadOnly ? '#f8f9fa' : (isFormulaCell ? '#f0f8ff' : '#fff')),
     cursor: isReadOnly ? 'default' : 'cell',
     textDecoration: isArchived ? 'line-through' : 'none',
     opacity: isArchived ? 0.6 : 1,
     position: 'relative',
-    fontStyle: column.type === 'formula' ? 'italic' : 'normal',
+    fontStyle: isFormulaCell ? 'italic' : 'normal',
     fontSize: '13px',
-    color: '#3c4043',
+    color: isFormulaCell ? '#1a73e8' : '#3c4043',
     fontFamily: 'Roboto, Arial, sans-serif',
     lineHeight: '20px',
     verticalAlign: 'top',

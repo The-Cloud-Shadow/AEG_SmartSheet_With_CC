@@ -3,10 +3,10 @@ import { SpreadsheetState, SpreadsheetAction, ColumnConfig, CellData } from '../
 
 const initialColumns: ColumnConfig[] = [
   { id: 'A', label: 'Column A', type: 'number' },
-  { id: 'B', label: 'Column B', type: 'formula', formula: 'A/100' },
+  { id: 'B', label: 'Column B', type: 'number' },
   { id: 'C', label: 'Status', type: 'dropdown', dropdownOptions: ['Active', 'Inactive', 'Pending'] },
   { id: 'D', label: 'Notes', type: 'text' },
-  { id: 'E', label: 'Total', type: 'number', readOnly: true },
+  { id: 'E', label: 'Total', type: 'number' },
 ];
 
 // Create some initial sample data for testing
@@ -65,6 +65,61 @@ const calculateInitialFormulas = (cells: { [cellId: string]: CellData }, columns
   });
 
   return newCells;
+};
+
+// Function to calculate individual cell formulas
+const calculateCellFormula = (formula: string, row: number, cells: { [cellId: string]: CellData }): string | null => {
+  try {
+    // Simple formula parsing - supports basic operations
+    if (formula.includes('/')) {
+      const [sourceCol, divisor] = formula.split('/');
+      const sourceCellId = `${sourceCol.trim()}${row}`;
+      const sourceCell = cells[sourceCellId];
+      
+      if (sourceCell && sourceCell.value && !isNaN(Number(sourceCell.value))) {
+        const result = Number(sourceCell.value) / Number(divisor.trim());
+        return result.toString();
+      }
+    } else if (formula.includes('+')) {
+      const parts = formula.split('+').map(p => p.trim());
+      let sum = 0;
+      for (const part of parts) {
+        if (part.match(/^[A-Z]\d+$/)) {
+          // It's a cell reference
+          const cell = cells[part];
+          if (cell && !isNaN(Number(cell.value))) {
+            sum += Number(cell.value);
+          }
+        } else if (!isNaN(Number(part))) {
+          // It's a number
+          sum += Number(part);
+        }
+      }
+      return sum.toString();
+    } else if (formula.includes('*')) {
+      const [left, right] = formula.split('*').map(p => p.trim());
+      let leftVal = 0, rightVal = 0;
+      
+      if (left.match(/^[A-Z]\d+$/)) {
+        const cell = cells[left];
+        leftVal = cell && !isNaN(Number(cell.value)) ? Number(cell.value) : 0;
+      } else {
+        leftVal = Number(left) || 0;
+      }
+      
+      if (right.match(/^[A-Z]\d+$/)) {
+        const cell = cells[right];
+        rightVal = cell && !isNaN(Number(cell.value)) ? Number(cell.value) : 0;
+      } else {
+        rightVal = Number(right) || 0;
+      }
+      
+      return (leftVal * rightVal).toString();
+    }
+  } catch (error) {
+    console.error('Formula calculation error:', error);
+  }
+  return null;
 };
 
 const initialCellsWithFormulas = calculateInitialFormulas(sampleCells, initialColumns);
@@ -140,16 +195,24 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
 
   switch (action.type) {
     case 'UPDATE_CELL': {
-      const { cellId, value, formula } = action.payload;
+      const { cellId, value, formula, isFormula } = action.payload;
       const cellMatch = cellId.match(/^([A-Z]+)(\d+)$/);
       if (!cellMatch) return state;
       
       const [, column, row] = cellMatch;
       const newCells = { ...state.cells };
+      
+      // If it's a formula cell, calculate the result
+      let calculatedValue = value;
+      if (isFormula && formula) {
+        calculatedValue = calculateCellFormula(formula, parseInt(row), newCells) || value;
+      }
+      
       newCells[cellId] = { 
         id: cellId, 
-        value, 
+        value: calculatedValue, 
         formula, 
+        isFormula,
         row: parseInt(row), 
         column 
       };
@@ -287,6 +350,52 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
 
     case 'TOGGLE_ARCHIVED_ROWS_VISIBILITY': {
       return { ...state, showArchivedRows: !state.showArchivedRows };
+    }
+
+    case 'TOGGLE_COLUMN_LOCK': {
+      const { columnId } = action.payload;
+      const newColumns = state.columns.map(col => 
+        col.id === columnId 
+          ? { ...col, readOnly: !col.readOnly }
+          : col
+      );
+      const newState = { ...state, columns: newColumns };
+      return saveToHistory(newState);
+    }
+
+    case 'SET_COLUMN_FORMULA': {
+      const { columnId, formula } = action.payload;
+      const newColumns = state.columns.map(col => 
+        col.id === columnId 
+          ? { 
+              ...col, 
+              type: formula ? 'formula' : 'text',
+              formula: formula || undefined
+            }
+          : col
+      );
+      
+      // If setting a formula, recalculate all cells in that column
+      let newCells = { ...state.cells };
+      if (formula) {
+        Object.keys(newCells).forEach(cellId => {
+          const cell = newCells[cellId];
+          if (cell.column === columnId) {
+            const calculatedValue = calculateCellFormula(formula, cell.row, newCells);
+            if (calculatedValue !== null) {
+              newCells[cellId] = {
+                ...cell,
+                value: calculatedValue,
+                formula,
+                isFormula: true
+              };
+            }
+          }
+        });
+      }
+      
+      const newState = { ...state, columns: newColumns, cells: newCells };
+      return saveToHistory(newState);
     }
 
     default:

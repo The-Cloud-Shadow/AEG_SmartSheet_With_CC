@@ -131,6 +131,7 @@ function AddColumnDialog({ onAdd, onCancel }: AddColumnDialogProps) {
   const [label, setLabel] = useState('');
   const [type, setType] = useState<ColumnConfig['type']>('text');
   const [dropdownOptions, setDropdownOptions] = useState('');
+  const [formula, setFormula] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,6 +142,9 @@ function AddColumnDialog({ onAdd, onCancel }: AddColumnDialogProps) {
       type,
       ...(type === 'dropdown' && {
         dropdownOptions: dropdownOptions.split(',').map(opt => opt.trim()).filter(opt => opt)
+      }),
+      ...(type === 'formula' && {
+        formula: formula.trim()
       })
     };
 
@@ -219,6 +223,7 @@ function AddColumnDialog({ onAdd, onCancel }: AddColumnDialogProps) {
               <option value="text">Text</option>
               <option value="number">Number</option>
               <option value="dropdown">Dropdown</option>
+              <option value="formula">Formula</option>
             </select>
           </div>
 
@@ -234,6 +239,24 @@ function AddColumnDialog({ onAdd, onCancel }: AddColumnDialogProps) {
                 style={inputStyle}
                 placeholder="Option 1, Option 2, Option 3"
               />
+            </div>
+          )}
+
+          {type === 'formula' && (
+            <div>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#5f6368' }}>
+                Formula (without =):
+              </label>
+              <input
+                type="text"
+                value={formula}
+                onChange={(e) => setFormula(e.target.value)}
+                style={inputStyle}
+                placeholder="A1+B1 or A1/100 or A1*B1"
+              />
+              <div style={{ fontSize: '11px', color: '#5f6368', marginTop: '4px' }}>
+                Examples: A1+B1 (sum), A1/100 (divide), A1*B1 (multiply)
+              </div>
             </div>
           )}
 

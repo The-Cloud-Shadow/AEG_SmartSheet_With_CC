@@ -78,6 +78,15 @@ export function Spreadsheet() {
     dispatch({ type: 'SORT_BY_COLUMN', payload: { column: columnId, ascending } });
   };
 
+  const handleColumnHeaderClick = (columnId: string) => {
+    // Right-click or ctrl+click to toggle lock, regular click does nothing for now
+  };
+
+  const handleColumnLockToggle = (columnId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    dispatch({ type: 'TOGGLE_COLUMN_LOCK', payload: { columnId } });
+  };
+
   const containerStyle: React.CSSProperties = {
     width: '100%',
     margin: '0 auto',
@@ -196,18 +205,30 @@ export function Spreadsheet() {
             </th>
             <th style={headerStyle}>#</th>
             {state.columns.map((column) => (
-              <th key={column.id} style={headerStyle}>
+              <th 
+                key={column.id} 
+                style={{
+                  ...headerStyle,
+                  backgroundColor: column.readOnly ? '#f0f0f0' : headerStyle.backgroundColor
+                }}
+                onContextMenu={(e) => handleColumnLockToggle(column.id, e)}
+                title={`${column.label}${column.readOnly ? ' (Locked)' : ''} - Right-click to ${column.readOnly ? 'unlock' : 'lock'}`}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  {column.label}
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    {column.label}
+                    {column.readOnly && <span style={{ fontSize: '10px' }}>🔒</span>}
+                    {column.type === 'formula' && <span style={{ fontSize: '10px', color: '#1a73e8' }}>f(x)</span>}
+                  </span>
                   <button
                     onClick={() => handleSort(column.id, true)}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer' }}
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
                   >
                     ↑
                   </button>
                   <button
                     onClick={() => handleSort(column.id, false)}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer' }}
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
                   >
                     ↓
                   </button>

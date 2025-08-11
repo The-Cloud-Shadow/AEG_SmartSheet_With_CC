@@ -2,6 +2,7 @@ export interface CellData {
   id: string;
   value: string;
   formula?: string;
+  isFormula?: boolean;
   row: number;
   column: string;
 }
@@ -26,7 +27,7 @@ export interface SpreadsheetState {
 }
 
 export type SpreadsheetAction =
-  | { type: 'UPDATE_CELL'; payload: { cellId: string; value: string; formula?: string } }
+  | { type: 'UPDATE_CELL'; payload: { cellId: string; value: string; formula?: string; isFormula?: boolean } }
   | { type: 'ARCHIVE_ROWS'; payload: number[] }
   | { type: 'UNARCHIVE_ROWS'; payload: number[] }
   | { type: 'SORT_BY_COLUMN'; payload: { column: string; ascending: boolean } }
@@ -37,4 +38,6 @@ export type SpreadsheetAction =
   | { type: 'REDO' }
   | { type: 'APPLY_COLUMN_FORMULA'; payload: { column: string; formula: string } }
   | { type: 'ADD_COLUMN'; payload: ColumnConfig }
-  | { type: 'TOGGLE_ARCHIVED_ROWS_VISIBILITY' };
+  | { type: 'TOGGLE_ARCHIVED_ROWS_VISIBILITY' }
+  | { type: 'TOGGLE_COLUMN_LOCK'; payload: { columnId: string } }
+  | { type: 'SET_COLUMN_FORMULA'; payload: { columnId: string; formula?: string } };
