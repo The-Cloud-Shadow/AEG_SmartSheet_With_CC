@@ -119,6 +119,7 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     if (isSyncing.current) return;
     
     try {
+      console.log('Syncing cell update to Supabase:', cell.id, cell.value);
       const dbCell = appCellToDbCell(cell, sheetId);
       
       const { error } = await supabase
@@ -127,63 +128,49 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
 
       if (error) {
         console.error('Error syncing cell update:', error);
+      } else {
+        console.log('Cell synced successfully:', cell.id);
       }
     } catch (error) {
       console.error('Error in syncCellUpdate:', error);
     }
   }, [sheetId, appCellToDbCell]);
 
-  // Sync archived rows
-  const syncArchivedRows = useCallback(async (archivedRows: Set<number>) => {
-    if (isSyncing.current) return;
-    
-    try {
-      // Delete all existing archived rows for this sheet
-      await supabase
-        .from('archived_rows')
-        .delete()
-        .eq('sheet_id', sheetId);
-
-      // Insert current archived rows
-      if (archivedRows.size > 0) {
-        const rowsToInsert = Array.from(archivedRows).map(rowNumber => ({
-          sheet_id: sheetId,
-          row_number: rowNumber
-        }));
-
-        const { error } = await supabase
-          .from('archived_rows')
-          .insert(rowsToInsert);
-
-        if (error) {
-          console.error('Error syncing archived rows:', error);
-        }
-      }
-    } catch (error) {
-      console.error('Error in syncArchivedRows:', error);
-    }
-  }, [sheetId]);
-
   // Set up real-time subscriptions
   useEffect(() => {
+    console.log('Setting up real-time subscriptions...');
+    
     if (!isInitialized.current) {
       loadInitialData();
     }
 
-    // Subscribe to cell changes
-    const cellsSubscription = supabase
-      .channel('cells-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'cells', filter: `sheet_id=eq.${sheetId}` },
+    // Create a single channel for all real-time events
+    const channel = supabase
+      .channel(`spreadsheet-${sheetId}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'cells',
+          filter: `sheet_id=eq.${sheetId}` 
+        },
         (payload) => {
-          if (isSyncing.current) return;
+          console.log('Received cell change from real-time:', payload);
           
-          console.log('Received cell change:', payload);
+          // Skip if this change came from our own update
+          if (isSyncing.current) {
+            console.log('Skipping real-time update - currently syncing');
+            return;
+          }
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const dbCell = payload.new as DatabaseCellData;
             const cell = dbCellToAppCell(dbCell);
             
+            console.log('Applying real-time cell update:', cell);
+            
+            // Temporarily set syncing to prevent loops
             isSyncing.current = true;
             dispatch({ 
               type: 'UPDATE_CELL', 
@@ -194,21 +181,26 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
                 isFormula: cell.isFormula 
               } 
             });
-            isSyncing.current = false;
+            
+            // Reset syncing flag after a short delay
+            setTimeout(() => {
+              isSyncing.current = false;
+            }, 100);
           }
         }
       )
-      .subscribe();
-
-    // Subscribe to archived rows changes
-    const archivedSubscription = supabase
-      .channel('archived-changes')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'archived_rows', filter: `sheet_id=eq.${sheetId}` },
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'archived_rows',
+          filter: `sheet_id=eq.${sheetId}` 
+        },
         async (payload) => {
-          if (isSyncing.current) return;
+          console.log('Received archived rows change from real-time:', payload);
           
-          console.log('Received archived rows change:', payload);
+          if (isSyncing.current) return;
           
           // Reload archived rows data
           const { data } = await supabase
@@ -220,19 +212,24 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
             const archivedRows = data.map(row => row.row_number);
             isSyncing.current = true;
             dispatch({ type: 'LOAD_ARCHIVED_ROWS', payload: archivedRows });
-            isSyncing.current = false;
+            
+            setTimeout(() => {
+              isSyncing.current = false;
+            }, 100);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
 
     return () => {
-      cellsSubscription.unsubscribe();
-      archivedSubscription.unsubscribe();
+      console.log('Unsubscribing from real-time channel');
+      channel.unsubscribe();
     };
   }, [sheetId, loadInitialData, dispatch, dbCellToAppCell]);
 
-  // Sync state changes to Supabase
+  // Sync state changes to Supabase (but only after initial load)
   useEffect(() => {
     if (!isInitialized.current || isSyncing.current) return;
 
@@ -240,14 +237,7 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     Object.values(state.cells).forEach(cell => {
       syncCellUpdate(cell);
     });
-  }, [state.cells, syncCellUpdate, isInitialized.current]);
-
-  useEffect(() => {
-    if (!isInitialized.current || isSyncing.current) return;
-    
-    // Sync archived rows
-    syncArchivedRows(state.archivedRows);
-  }, [state.archivedRows, syncArchivedRows, isInitialized.current]);
+  }, [state.cells, syncCellUpdate]);
 
   return {
     isInitialized: isInitialized.current,
