@@ -593,9 +593,17 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
         syncCell(cell);
       }
     } else if (action.type === 'ARCHIVE_ROWS' || action.type === 'UNARCHIVE_ROWS') {
-      // Sync archived rows after the state update
+      // Sync archived rows after the state update with the NEW state
       setTimeout(() => {
-        syncArchivedRows(state.archivedRows);
+        // Get the updated archived rows after the action
+        let newArchivedRows;
+        if (action.type === 'ARCHIVE_ROWS') {
+          newArchivedRows = new Set([...state.archivedRows, ...action.payload]);
+        } else {
+          newArchivedRows = new Set(state.archivedRows);
+          action.payload.forEach(row => newArchivedRows.delete(row));
+        }
+        syncArchivedRows(newArchivedRows);
       }, 0);
     } else if (action.type === 'SET_COLUMN_FORMULA' || action.type === 'TOGGLE_COLUMN_LOCK') {
       // Sync column changes after the state update
