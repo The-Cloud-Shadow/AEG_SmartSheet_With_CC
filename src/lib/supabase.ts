@@ -15,8 +15,8 @@ export interface DatabaseCellData {
   value: string
   formula?: string
   is_formula?: boolean
-  row: number
-  column: string
+  row_num: number
+  col_id: string
   updated_at: string
   updated_by?: string
 }

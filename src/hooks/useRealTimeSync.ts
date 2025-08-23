@@ -18,8 +18,8 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     value: dbCell.value,
     formula: dbCell.formula,
     isFormula: dbCell.is_formula,
-    row: dbCell.row,
-    column: dbCell.column
+    row: dbCell.row_num,
+    column: dbCell.col_id
   }), []);
 
   // Convert app cell to database format
@@ -28,8 +28,8 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     value: cell.value,
     formula: cell.formula,
     is_formula: cell.isFormula || false,
-    row: cell.row,
-    column: cell.column,
+    row_num: cell.row,
+    col_id: cell.column,
     sheet_id: sheetId
   }), []);
 
