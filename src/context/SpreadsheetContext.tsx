@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
 import { SpreadsheetState, SpreadsheetAction, ColumnConfig, CellData } from '../types';
 import { useRealTimeSync } from '../hooks/useRealTimeSync';
 
@@ -568,10 +568,40 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(spreadsheetReducer, initialState);
 
   // Enable real-time sync with Supabase
-  const { isInitialized, isSyncing } = useRealTimeSync({ state, dispatch });
+  const { isInitialized, isSyncing, syncCell, syncArchivedRows } = useRealTimeSync({ state, dispatch });
+
+  // Create enhanced dispatch that also syncs to Supabase
+  const enhancedDispatch = useCallback((action: SpreadsheetAction) => {
+    dispatch(action);
+    
+    // Only sync to Supabase after initial load and if not currently syncing from real-time
+    if (!isInitialized || isSyncing) return;
+    
+    // Sync specific changes to Supabase
+    if (action.type === 'UPDATE_CELL') {
+      const { cellId, value, formula, isFormula } = action.payload;
+      const [, column, row] = cellId.match(/^([A-Z]+)(\d+)$/) || [];
+      if (column && row) {
+        const cell = {
+          id: cellId,
+          value,
+          formula,
+          isFormula,
+          row: parseInt(row),
+          column
+        };
+        syncCell(cell);
+      }
+    } else if (action.type === 'ARCHIVE_ROWS' || action.type === 'UNARCHIVE_ROWS') {
+      // Sync archived rows after the state update
+      setTimeout(() => {
+        syncArchivedRows(state.archivedRows);
+      }, 0);
+    }
+  }, [isInitialized, isSyncing, syncCell, syncArchivedRows, state.archivedRows]);
 
   return (
-    <SpreadsheetContext.Provider value={{ state, dispatch }}>
+    <SpreadsheetContext.Provider value={{ state, dispatch: enhancedDispatch }}>
       {children}
     </SpreadsheetContext.Provider>
   );

@@ -136,6 +136,37 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     }
   }, [sheetId, appCellToDbCell]);
 
+  // Sync archived rows
+  const syncArchivedRows = useCallback(async (archivedRows: Set<number>) => {
+    if (isSyncing.current) return;
+    
+    try {
+      // Delete all existing archived rows for this sheet
+      await supabase
+        .from('archived_rows')
+        .delete()
+        .eq('sheet_id', sheetId);
+
+      // Insert current archived rows
+      if (archivedRows.size > 0) {
+        const rowsToInsert = Array.from(archivedRows).map(rowNumber => ({
+          sheet_id: sheetId,
+          row_number: rowNumber
+        }));
+
+        const { error } = await supabase
+          .from('archived_rows')
+          .insert(rowsToInsert);
+
+        if (error) {
+          console.error('Error syncing archived rows:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error in syncArchivedRows:', error);
+    }
+  }, [sheetId]);
+
   // Set up real-time subscriptions
   useEffect(() => {
     console.log('Setting up real-time subscriptions...');
@@ -229,18 +260,13 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     };
   }, [sheetId, loadInitialData, dispatch, dbCellToAppCell]);
 
-  // Sync state changes to Supabase (but only after initial load)
-  useEffect(() => {
-    if (!isInitialized.current || isSyncing.current) return;
-
-    // Sync cell changes
-    Object.values(state.cells).forEach(cell => {
-      syncCellUpdate(cell);
-    });
-  }, [state.cells, syncCellUpdate]);
+  // We don't need a useEffect to sync ALL cells on every change
+  // Individual cell updates will be handled by the context/reducer directly
 
   return {
     isInitialized: isInitialized.current,
-    isSyncing: isSyncing.current
+    isSyncing: isSyncing.current,
+    syncCell: syncCellUpdate,
+    syncArchivedRows
   };
 }

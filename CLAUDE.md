@@ -29,3 +29,4 @@ The spreadsheet now supports real-time collaboration with automatic syncing acro
 # Recent Changes
 - Integrated Supabase real-time collaboration with automatic syncing of cell updates, archived rows, and column configurations across multiple users
 - Set up Supabase database tables with sample data and enabled real-time subscriptions for multi-user collaboration
+- Fixed real-time sync delays by improving subscription logic, preventing infinite loops, and enabling proper real-time publications
