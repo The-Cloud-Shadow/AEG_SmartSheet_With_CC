@@ -40,4 +40,7 @@ export type SpreadsheetAction =
   | { type: 'ADD_COLUMN'; payload: ColumnConfig }
   | { type: 'TOGGLE_ARCHIVED_ROWS_VISIBILITY' }
   | { type: 'TOGGLE_COLUMN_LOCK'; payload: { columnId: string } }
-  | { type: 'SET_COLUMN_FORMULA'; payload: { columnId: string; formula?: string } };
+  | { type: 'SET_COLUMN_FORMULA'; payload: { columnId: string; formula?: string } }
+  | { type: 'LOAD_DATA'; payload: { cells: { [cellId: string]: CellData } } }
+  | { type: 'LOAD_COLUMNS'; payload: ColumnConfig[] }
+  | { type: 'LOAD_ARCHIVED_ROWS'; payload: number[] };

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { SpreadsheetState, SpreadsheetAction, ColumnConfig, CellData } from '../types';
+import { useRealTimeSync } from '../hooks/useRealTimeSync';
 
 const initialColumns: ColumnConfig[] = [
   { id: 'A', label: 'Column A', type: 'number' },
@@ -539,6 +540,18 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
       return saveToHistory(newState);
     }
 
+    case 'LOAD_DATA': {
+      return { ...state, cells: action.payload.cells };
+    }
+
+    case 'LOAD_COLUMNS': {
+      return { ...state, columns: action.payload };
+    }
+
+    case 'LOAD_ARCHIVED_ROWS': {
+      return { ...state, archivedRows: new Set(action.payload) };
+    }
+
     default:
       return state;
   }
@@ -553,6 +566,9 @@ const SpreadsheetContext = createContext<SpreadsheetContextType | undefined>(und
 
 export function SpreadsheetProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(spreadsheetReducer, initialState);
+
+  // Enable real-time sync with Supabase
+  const { isInitialized, isSyncing } = useRealTimeSync({ state, dispatch });
 
   return (
     <SpreadsheetContext.Provider value={{ state, dispatch }}>
