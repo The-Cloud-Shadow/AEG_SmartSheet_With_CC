@@ -167,6 +167,38 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     }
   }, [sheetId]);
 
+  // Sync column updates to Supabase
+  const syncColumnUpdate = useCallback(async (column: ColumnConfig, position: number = 0) => {
+    if (isSyncing.current) return;
+    
+    try {
+      console.log('Syncing column update to Supabase:', column.id);
+      
+      const dbColumn = {
+        id: column.id,
+        sheet_id: sheetId,
+        label: column.label,
+        type: column.type,
+        formula: column.formula,
+        read_only: column.readOnly || false,
+        dropdown_options: column.dropdownOptions || null,
+        position: position
+      };
+      
+      const { error } = await supabase
+        .from('columns')
+        .upsert(dbColumn, { onConflict: 'id,sheet_id' });
+
+      if (error) {
+        console.error('Error syncing column update:', error);
+      } else {
+        console.log('Column synced successfully:', column.id);
+      }
+    } catch (error) {
+      console.error('Error in syncColumnUpdate:', error);
+    }
+  }, [sheetId]);
+
   // Set up real-time subscriptions
   useEffect(() => {
     console.log('Setting up real-time subscriptions...');
@@ -250,6 +282,37 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'columns',
+          filter: `sheet_id=eq.${sheetId}` 
+        },
+        async (payload) => {
+          console.log('Received column change from real-time:', payload);
+          
+          if (isSyncing.current) return;
+          
+          // Reload columns data
+          const { data } = await supabase
+            .from('columns')
+            .select('*')
+            .eq('sheet_id', sheetId)
+            .order('position');
+          
+          if (data) {
+            const columns = data.map(dbColumnToAppColumn);
+            isSyncing.current = true;
+            dispatch({ type: 'LOAD_COLUMNS', payload: columns });
+            
+            setTimeout(() => {
+              isSyncing.current = false;
+            }, 100);
+          }
+        }
+      )
       .subscribe((status) => {
         console.log('Subscription status:', status);
       });
@@ -267,6 +330,7 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     isInitialized: isInitialized.current,
     isSyncing: isSyncing.current,
     syncCell: syncCellUpdate,
+    syncColumn: syncColumnUpdate,
     syncArchivedRows
   };
 }

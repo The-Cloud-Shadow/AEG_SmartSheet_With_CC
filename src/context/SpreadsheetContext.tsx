@@ -568,7 +568,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(spreadsheetReducer, initialState);
 
   // Enable real-time sync with Supabase
-  const { isInitialized, isSyncing, syncCell, syncArchivedRows } = useRealTimeSync({ state, dispatch });
+  const { isInitialized, isSyncing, syncCell, syncColumn, syncArchivedRows } = useRealTimeSync({ state, dispatch });
 
   // Create enhanced dispatch that also syncs to Supabase
   const enhancedDispatch = useCallback((action: SpreadsheetAction) => {
@@ -597,8 +597,21 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
       setTimeout(() => {
         syncArchivedRows(state.archivedRows);
       }, 0);
+    } else if (action.type === 'SET_COLUMN_FORMULA' || action.type === 'TOGGLE_COLUMN_LOCK') {
+      // Sync column changes after the state update
+      setTimeout(() => {
+        if (action.type === 'SET_COLUMN_FORMULA') {
+          const columnIndex = state.columns.findIndex(col => col.id === action.payload.columnId);
+          const column = state.columns[columnIndex];
+          if (column) syncColumn(column, columnIndex);
+        } else if (action.type === 'TOGGLE_COLUMN_LOCK') {
+          const columnIndex = state.columns.findIndex(col => col.id === action.payload.columnId);
+          const column = state.columns[columnIndex];
+          if (column) syncColumn(column, columnIndex);
+        }
+      }, 0);
     }
-  }, [isInitialized, isSyncing, syncCell, syncArchivedRows, state.archivedRows]);
+  }, [isInitialized, isSyncing, syncCell, syncColumn, syncArchivedRows, state.archivedRows, state.columns]);
 
   return (
     <SpreadsheetContext.Provider value={{ state, dispatch: enhancedDispatch }}>
