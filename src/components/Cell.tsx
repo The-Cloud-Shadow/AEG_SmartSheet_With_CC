@@ -12,7 +12,6 @@ export function Cell({ row, column, cellId }: CellProps) {
   const { state, dispatch } = useSpreadsheet();
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
-  const [isFormula, setIsFormula] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
 
@@ -39,7 +38,6 @@ export function Cell({ row, column, cellId }: CellProps) {
       // Show the formula in edit mode if it's a formula cell
       const displayValue = cell?.isFormula && cell?.formula ? `=${cell.formula}` : value;
       setEditValue(displayValue);
-      setIsFormula(cell?.isFormula || false);
     }
   };
 
@@ -105,7 +103,7 @@ export function Cell({ row, column, cellId }: CellProps) {
     maxWidth: '200px',
     height: '36px',
     backgroundColor: isSelected ? '#e3f2fd' : (isHovered && !isReadOnly ? '#f8f9ff' : (isReadOnly ? '#fafafa' : (isFormulaCell ? '#f3e5f5' : '#ffffff'))),
-    cursor: isReadOnly ? 'default' : 'pointer',
+    cursor: isReadOnly ? 'default' : 'default',
     textDecoration: isArchived ? 'line-through' : 'none',
     opacity: isArchived ? 0.6 : 1,
     position: 'relative',
@@ -123,7 +121,11 @@ export function Cell({ row, column, cellId }: CellProps) {
 
   if (isEditing && column.type === 'dropdown') {
     return (
-      <td style={cellStyle}>
+      <td 
+        style={cellStyle}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <select
           ref={inputRef as React.RefObject<HTMLSelectElement>}
           value={editValue}
@@ -154,7 +156,11 @@ export function Cell({ row, column, cellId }: CellProps) {
 
   if (isEditing) {
     return (
-      <td style={cellStyle}>
+      <td 
+        style={cellStyle}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <input
           ref={inputRef as React.RefObject<HTMLInputElement>}
           type={column.type === 'number' ? 'number' : 'text'}
