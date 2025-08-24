@@ -34,3 +34,4 @@ The spreadsheet now supports real-time collaboration with automatic syncing acro
 - Added real-time syncing for column configurations including dropdown options, formulas, and read-only status across all users
 - Fixed real-time sync for archiving functionality by correcting archived rows state synchronization to sync the updated state instead of old state
 - Added comprehensive logging for archiving sync debugging and removed cell/dropdown logging to focus on unarchiving sync issue
+- Fixed unarchiving sync race condition by removing isSyncing blocking for user-initiated archiving actions

@@ -165,6 +165,24 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
         return;
       }
       console.log('✅ [ARCHIVE SYNC] Deleted rows:', deleteData?.length || 0);
+      
+      // For the case where we're unarchiving all rows (empty array), 
+      // manually trigger a database check to ensure other clients get updated
+      if (archivedRows.size === 0 && deleteData && deleteData.length > 0) {
+        console.log('🗑️ [ARCHIVE SYNC] All rows unarchived - triggering manual sync check');
+        // Force a small update to trigger real-time events for other clients
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Try inserting and immediately deleting a dummy row to trigger real-time
+        try {
+          const dummyRow = { sheet_id: sheetId, row_number: -999 };
+          await supabase.from('archived_rows').insert(dummyRow);
+          await supabase.from('archived_rows').delete().eq('row_number', -999).eq('sheet_id', sheetId);
+          console.log('✅ [ARCHIVE SYNC] Sent manual real-time trigger for complete unarchive');
+        } catch (triggerError) {
+          console.log('⚠️ [ARCHIVE SYNC] Manual trigger failed (not critical):', triggerError);
+        }
+      }
 
       // Insert current archived rows
       if (archivedRows.size > 0) {
@@ -288,8 +306,9 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
             return;
           }
           
-          // Reload archived rows data
-          console.log('🔄 [ARCHIVE REALTIME] Processing event - reloading from database...');
+          // For all events (INSERT, UPDATE, DELETE), reload the current state from database
+          // This ensures we always have the most up-to-date state regardless of event type
+          console.log('🔄 [ARCHIVE REALTIME] Processing', payload.eventType, 'event - reloading from database...');
           const { data, error } = await supabase
             .from('archived_rows')
             .select('row_number, sheet_id')
@@ -300,11 +319,10 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
             return;
           }
           
-          console.log('📊 [ARCHIVE REALTIME] Raw data from database:', data);
+          console.log('📊 [ARCHIVE REALTIME] Raw data from database after', payload.eventType + ':', data);
           const archivedRows = data ? data.map(row => row.row_number) : [];
-          console.log('📊 [ARCHIVE REALTIME] Mapped archived rows:', archivedRows);
+          console.log('📊 [ARCHIVE REALTIME] Mapped archived rows after', payload.eventType + ':', archivedRows);
           console.log('🚀 [ARCHIVE REALTIME] Dispatching LOAD_ARCHIVED_ROWS with:', archivedRows);
-          console.log('🚀 [ARCHIVE REALTIME] This will update archived rows from real-time event');
           
           // Temporarily set syncing flag to prevent infinite loops while we update state
           isSyncing.current = true;
