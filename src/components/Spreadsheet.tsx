@@ -133,8 +133,10 @@ export function Spreadsheet() {
     margin: '0 auto',
     height: 'calc(100vh - 140px)',
     overflow: 'auto',
-    border: '1px solid #c0c0c0',
-    backgroundColor: '#fff',
+    border: '1px solid #e2e8f0',
+    backgroundColor: '#ffffff',
+    borderRadius: '8px',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
   };
 
   const tableStyle: React.CSSProperties = {
@@ -147,34 +149,34 @@ export function Spreadsheet() {
   };
 
   const headerStyle: React.CSSProperties = {
-    backgroundColor: '#f8f9fa',
-    border: '1px solid #dadce0',
-    borderRight: '1px solid #dadce0',
-    borderBottom: '2px solid #dadce0',
-    padding: '8px 12px',
-    fontWeight: '500',
+    backgroundColor: '#f1f5f9',
+    border: '1px solid #e2e8f0',
+    borderRight: '1px solid #e2e8f0',
+    borderBottom: '2px solid #cbd5e1',
+    padding: '12px 16px',
+    fontWeight: '600',
     position: 'sticky',
     top: 0,
     zIndex: 10,
-    color: '#3c4043',
+    color: '#475569',
     textAlign: 'center',
-    fontSize: '12px',
-    height: '40px',
-    lineHeight: '24px',
+    fontSize: '13px',
+    height: '44px',
+    lineHeight: '20px',
   };
 
   const rowHeaderStyle: React.CSSProperties = {
-    backgroundColor: '#f8f9fa',
-    border: '1px solid #dadce0',
-    borderRight: '2px solid #dadce0',
+    backgroundColor: '#f1f5f9',
+    border: '1px solid #e2e8f0',
+    borderRight: '2px solid #cbd5e1',
     padding: '0',
     textAlign: 'center',
-    width: '60px',
-    minWidth: '60px',
-    height: '32px',
-    fontSize: '12px',
-    color: '#5f6368',
-    fontWeight: '400',
+    width: '64px',
+    minWidth: '64px',
+    height: '36px',
+    fontSize: '13px',
+    color: '#64748b',
+    fontWeight: '500',
     position: 'sticky',
     left: 0,
     zIndex: 5,
@@ -188,23 +190,26 @@ export function Spreadsheet() {
   };
 
   const buttonStyle: React.CSSProperties = {
-    padding: '6px 12px',
-    border: '1px solid #dadce0',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '4px',
+    padding: '8px 16px',
+    border: '1px solid #06b6d4',
+    backgroundColor: '#06b6d4',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '12px',
-    color: '#3c4043',
+    fontSize: '13px',
+    color: '#ffffff',
     fontWeight: '500',
-    transition: 'all 0.2s',
+    transition: 'all 0.2s ease-in-out',
+    boxShadow: '0 1px 3px rgba(6, 182, 212, 0.3)',
   };
 
   const disabledButtonStyle: React.CSSProperties = {
     ...buttonStyle,
-    backgroundColor: '#f0f0f0',
-    color: '#9aa0a6',
+    backgroundColor: '#e2e8f0',
+    border: '1px solid #cbd5e1',
+    color: '#94a3b8',
     cursor: 'not-allowed',
-    opacity: 0.6,
+    opacity: 0.7,
+    boxShadow: 'none',
   };
 
   return (
@@ -347,31 +352,33 @@ function ColumnDropdownMenu({ column, onEditFormula, onLockToggle }: ColumnDropd
     position: 'absolute',
     top: '100%',
     right: '0',
-    backgroundColor: '#fff',
-    border: '1px solid #dadce0',
-    borderRadius: '4px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+    backgroundColor: '#ffffff',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
     zIndex: 1000,
-    minWidth: '150px',
-    padding: '4px 0',
+    minWidth: '160px',
+    padding: '8px 0',
   };
 
   const menuItemStyle: React.CSSProperties = {
     display: 'block',
     width: '100%',
-    padding: '8px 16px',
+    padding: '10px 16px',
     border: 'none',
     background: 'none',
     textAlign: 'left',
-    fontSize: '13px',
-    color: '#3c4043',
+    fontSize: '14px',
+    color: '#475569',
     cursor: 'pointer',
-    fontFamily: 'Roboto, Arial, sans-serif',
+    fontFamily: '"Inter", "Segoe UI", "Roboto", sans-serif',
+    fontWeight: '500',
   };
 
   const menuItemHoverStyle: React.CSSProperties = {
     ...menuItemStyle,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f1f5f9',
+    color: '#334155',
   };
 
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);

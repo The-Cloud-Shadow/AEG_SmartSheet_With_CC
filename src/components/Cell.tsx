@@ -13,6 +13,7 @@ export function Cell({ row, column, cellId }: CellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [isFormula, setIsFormula] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
 
   const cell = state.cells[cellId];
@@ -95,29 +96,29 @@ export function Cell({ row, column, cellId }: CellProps) {
   const isReadOnly = column.readOnly; // Only read-only if explicitly locked
   const isFormulaCell = cell?.isFormula || column.type === 'formula';
   const cellStyle: React.CSSProperties = {
-    border: '1px solid #dadce0',
-    borderRight: '1px solid #dadce0',
-    borderBottom: '1px solid #dadce0',
-    padding: '6px 8px',
+    border: '1px solid #e1e5e9',
+    borderRight: '1px solid #e1e5e9',
+    borderBottom: '1px solid #e1e5e9',
+    padding: '8px 12px',
     width: '120px',
     minWidth: '120px',
     maxWidth: '200px',
-    height: '32px',
-    backgroundColor: isSelected ? '#c2e7ff' : (isReadOnly ? '#f8f9fa' : (isFormulaCell ? '#f0f8ff' : '#fff')),
-    cursor: isReadOnly ? 'default' : 'cell',
+    height: '36px',
+    backgroundColor: isSelected ? '#e3f2fd' : (isHovered && !isReadOnly ? '#f8f9ff' : (isReadOnly ? '#fafafa' : (isFormulaCell ? '#f3e5f5' : '#ffffff'))),
+    cursor: isReadOnly ? 'default' : 'pointer',
     textDecoration: isArchived ? 'line-through' : 'none',
     opacity: isArchived ? 0.6 : 1,
     position: 'relative',
     fontStyle: isFormulaCell ? 'italic' : 'normal',
-    fontSize: '13px',
-    color: isFormulaCell ? '#1a73e8' : '#3c4043',
-    fontFamily: 'Roboto, Arial, sans-serif',
+    fontSize: '14px',
+    color: isFormulaCell ? '#7b1fa2' : '#2c3e50',
+    fontFamily: '"Inter", "Segoe UI", "Roboto", sans-serif',
     lineHeight: '20px',
     verticalAlign: 'top',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
-    transition: 'all 0.1s',
+    transition: 'all 0.15s ease-in-out',
   };
 
   if (isEditing && column.type === 'dropdown') {
@@ -181,6 +182,8 @@ export function Cell({ row, column, cellId }: CellProps) {
       style={cellStyle}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {value}
     </td>

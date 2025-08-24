@@ -1,33 +1,36 @@
 :root {
-  --primary-color: #1976d2;
-  --primary-dark: #1565c0;
-  --background-color: #f5f5f5;
-  --text-color: #333;
-  --border-color: #ddd;
+  --primary-color: #4f46e5;
+  --primary-dark: #3730a3;
+  --background-color: #f8fafc;
+  --text-color: #1e293b;
+  --border-color: #e2e8f0;
+  --hover-color: #f1f5f9;
+  --accent-color: #06b6d4;
 }
 
 .App {
   text-align: left;
   min-height: 100vh;
-  background-color: #fff;
+  background-color: var(--background-color);
   margin: 0;
   padding: 0;
   overflow: hidden;
 }
 
 .App-header {
-  background-color: #1a73e8;
-  padding: 16px 20px;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  padding: 20px 24px;
   color: white;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-  border-bottom: 1px solid #dadce0;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .App-header h1 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 400;
-  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-family: '"Inter", "Segoe UI", "Roboto", sans-serif';
+  letter-spacing: -0.025em;
 }
 
 main {
@@ -39,13 +42,12 @@ main {
 
 body {
   margin: 0;
-  font-family: 'Google Sans', 'Roboto', 'Segoe UI', -apple-system, BlinkMacSystemFont,
-    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: '"Inter", "Segoe UI", "Roboto", -apple-system, BlinkMacSystemFont,
+    'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #3c4043;
-  background-color: #fff;
+  color: var(--text-color);
+  background-color: var(--background-color);
 }
 
 * {
