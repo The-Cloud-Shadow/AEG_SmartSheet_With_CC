@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = 'https://epkkwpkvbszpiwmcnihq.supabase.co'
-const supabaseKey = import.meta.env.VITE_SUPABASE_KEY
+const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_KEY
 
 if (!supabaseKey) {
   throw new Error('Missing Supabase key. Please add VITE_SUPABASE_KEY to your .env.local file')
@@ -17,6 +17,7 @@ export interface DatabaseCellData {
   is_formula?: boolean
   row_num: number
   col_id: string
+  sheet_id: string
   updated_at: string
   updated_by?: string
 }

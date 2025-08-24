@@ -183,6 +183,67 @@ export function Spreadsheet() {
     setActiveColumnMenu(null);
   };
 
+  const handleAddColumn = () => {
+    const columnIds = state.columns.map(col => col.id);
+    
+    // Generate next column ID (A, B, C, ... Z, AA, AB, etc.)
+    const getNextColumnId = (): string => {
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const existing = new Set(columnIds);
+      
+      // Single letters first
+      for (let i = 0; i < 26; i++) {
+        const id = letters[i];
+        if (!existing.has(id)) return id;
+      }
+      
+      // Double letters
+      for (let i = 0; i < 26; i++) {
+        for (let j = 0; j < 26; j++) {
+          const id = letters[i] + letters[j];
+          if (!existing.has(id)) return id;
+        }
+      }
+      
+      return 'COL' + Date.now(); // Fallback
+    };
+
+    const newColumnId = getNextColumnId();
+    const columnName = prompt('Enter column name:', `Column ${newColumnId}`);
+    
+    if (columnName !== null && columnName.trim()) {
+      const columnType = prompt('Enter column type (text/number/dropdown):', 'text') as 'text' | 'number' | 'dropdown' | null;
+      
+      if (columnType && ['text', 'number', 'dropdown'].includes(columnType)) {
+        let dropdownOptions: string[] | undefined = undefined;
+        
+        if (columnType === 'dropdown') {
+          const options = prompt('Enter dropdown options (comma-separated):', 'Option1,Option2,Option3');
+          if (options) {
+            dropdownOptions = options.split(',').map(opt => opt.trim()).filter(opt => opt);
+          }
+        }
+        
+        const newColumn: ColumnConfig = {
+          id: newColumnId,
+          label: columnName.trim(),
+          type: columnType,
+          dropdownOptions
+        };
+        
+        dispatch({ type: 'ADD_COLUMN', payload: newColumn });
+      }
+    }
+  };
+
+  const handleDeleteColumn = (columnId: string) => {
+    const column = state.columns.find(col => col.id === columnId);
+    if (column && confirm(`Are you sure you want to delete column "${column.label}"? This will permanently delete all data in this column.`)) {
+      dispatch({ type: 'DELETE_COLUMN', payload: { columnId } });
+    }
+    setActiveColumnMenu(null);
+  };
+
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -373,10 +434,28 @@ export function Spreadsheet() {
                     column={column}
                     onEditFormula={() => handleEditFormula(column.id)}
                     onLockToggle={() => handleLockColumn(column.id)}
+                    onDelete={() => handleDeleteColumn(column.id)}
                   />
                 )}
               </th>
             ))}
+            <th style={headerStyle}>
+              <button
+                onClick={handleAddColumn}
+                style={{
+                  border: '1px solid #06b6d4',
+                  backgroundColor: '#06b6d4',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                + Add Column
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -403,6 +482,11 @@ export function Spreadsheet() {
                   />
                 );
               })}
+              <td style={{ 
+                border: '1px solid #e2e8f0', 
+                backgroundColor: '#f8fafc', 
+                width: '120px' 
+              }}></td>
             </tr>
           ))}
         </tbody>
@@ -416,9 +500,10 @@ interface ColumnDropdownMenuProps {
   column: ColumnConfig;
   onEditFormula: () => void;
   onLockToggle: () => void;
+  onDelete: () => void;
 }
 
-function ColumnDropdownMenu({ column, onEditFormula, onLockToggle }: ColumnDropdownMenuProps) {
+function ColumnDropdownMenu({ column, onEditFormula, onLockToggle, onDelete }: ColumnDropdownMenuProps) {
   const menuStyle: React.CSSProperties = {
     position: 'absolute',
     top: '100%',
@@ -471,6 +556,14 @@ function ColumnDropdownMenu({ column, onEditFormula, onLockToggle }: ColumnDropd
         onClick={onLockToggle}
       >
         {column.readOnly ? '🔓 Unlock Column' : '🔒 Lock Column'}
+      </button>
+      <button
+        style={hoveredItem === 'delete' ? { ...menuItemHoverStyle, color: '#dc2626' } : { ...menuItemStyle, color: '#dc2626' }}
+        onMouseEnter={() => setHoveredItem('delete')}
+        onMouseLeave={() => setHoveredItem(null)}
+        onClick={onDelete}
+      >
+        🗑️ Delete Column
       </button>
     </div>
   );

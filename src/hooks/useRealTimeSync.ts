@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { supabase, DatabaseCellData, DatabaseColumnConfig, DatabaseArchivedRow } from '../lib/supabase';
+import { supabase, DatabaseCellData, DatabaseColumnConfig } from '../lib/supabase';
 import { SpreadsheetState, SpreadsheetAction, CellData, ColumnConfig } from '../types';
 
 interface UseRealTimeSyncProps {
@@ -8,7 +8,7 @@ interface UseRealTimeSyncProps {
   sheetId?: string;
 }
 
-export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRealTimeSyncProps) {
+export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSyncProps) {
   const isInitialized = useRef(false);
   const isSyncing = useRef(false);
   const lastSyncTime = useRef(0);
@@ -238,6 +238,37 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     }
   }, [sheetId]);
 
+  // Delete column from Supabase
+  const syncColumnDelete = useCallback(async (columnId: string) => {
+    if (isSyncing.current) return;
+    
+    try {
+      // Delete column from columns table
+      const { error: columnError } = await supabase
+        .from('columns')
+        .delete()
+        .eq('id', columnId)
+        .eq('sheet_id', sheetId);
+
+      if (columnError) {
+        console.error('Error deleting column:', columnError);
+      }
+
+      // Delete all cells in this column
+      const { error: cellsError } = await supabase
+        .from('cells')
+        .delete()
+        .eq('col_id', columnId)
+        .eq('sheet_id', sheetId);
+
+      if (cellsError) {
+        console.error('Error deleting cells in column:', cellsError);
+      }
+    } catch (error) {
+      console.error('Error in syncColumnDelete:', error);
+    }
+  }, [sheetId]);
+
   // Set up real-time subscriptions
   useEffect(() => {
     if (!isInitialized.current) {
@@ -342,7 +373,7 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
           table: 'columns',
           filter: `sheet_id=eq.${sheetId}` 
         },
-        async (payload) => {
+        async (_payload) => {
           if (isSyncing.current) return;
           
           // Reload columns data
@@ -378,6 +409,7 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
     isSyncing: isSyncing.current,
     syncCell: syncCellUpdate,
     syncColumn: syncColumnUpdate,
+    syncDeleteColumn: syncColumnDelete,
     syncArchivedRows
   };
 }

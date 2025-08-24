@@ -473,6 +473,23 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
       return saveToHistory(newState);
     }
 
+    case 'DELETE_COLUMN': {
+      const { columnId } = action.payload;
+      const newColumns = state.columns.filter(col => col.id !== columnId);
+      
+      // Remove all cells in this column
+      const newCells = { ...state.cells };
+      Object.keys(newCells).forEach(cellId => {
+        if (newCells[cellId].column === columnId) {
+          delete newCells[cellId];
+        }
+      });
+      
+      const newState = { ...state, columns: newColumns, cells: newCells };
+      saveToStorage(newState);
+      return saveToHistory(newState);
+    }
+
     case 'TOGGLE_ARCHIVED_ROWS_VISIBILITY': {
       const newState = { ...state, showArchivedRows: !state.showArchivedRows };
       saveToStorage(newState);
@@ -584,7 +601,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(spreadsheetReducer, initialState);
 
   // Enable real-time sync with Supabase
-  const { isInitialized, isSyncing, syncCell, syncColumn, syncArchivedRows } = useRealTimeSync({ state, dispatch });
+  const { isInitialized, isSyncing, syncCell, syncColumn, syncDeleteColumn, syncArchivedRows } = useRealTimeSync({ state, dispatch });
 
   // Create enhanced dispatch that also syncs to Supabase
   const enhancedDispatch = useCallback((action: SpreadsheetAction) => {
@@ -647,7 +664,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
           console.log('⏭️ [CONTEXT] Skipping sync - not initialized yet');
         }
       }, 0);
-    } else if (action.type === 'SET_COLUMN_FORMULA' || action.type === 'TOGGLE_COLUMN_LOCK') {
+    } else if (action.type === 'SET_COLUMN_FORMULA' || action.type === 'TOGGLE_COLUMN_LOCK' || action.type === 'ADD_COLUMN' || action.type === 'DELETE_COLUMN') {
       // Sync column changes after the state update
       setTimeout(() => {
         if (action.type === 'SET_COLUMN_FORMULA') {
@@ -658,10 +675,22 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
           const columnIndex = state.columns.findIndex(col => col.id === action.payload.columnId);
           const column = state.columns[columnIndex];
           if (column) syncColumn(column, columnIndex);
+        } else if (action.type === 'ADD_COLUMN') {
+          const newColumn = action.payload;
+          const newColumnIndex = state.columns.length; // Will be the last position
+          syncColumn(newColumn, newColumnIndex);
+        } else if (action.type === 'DELETE_COLUMN') {
+          // For delete, we need to sync all remaining columns to update their positions
+          const newColumns = state.columns.filter(col => col.id !== action.payload.columnId);
+          newColumns.forEach((column, index) => {
+            syncColumn(column, index);
+          });
+          // Also need to delete the column from Supabase
+          syncDeleteColumn(action.payload.columnId);
         }
       }, 0);
     }
-  }, [isInitialized, isSyncing, syncCell, syncColumn, syncArchivedRows, state.archivedRows, state.columns]);
+  }, [isInitialized, isSyncing, syncCell, syncColumn, syncDeleteColumn, syncArchivedRows, state.archivedRows, state.columns]);
 
   return (
     <SpreadsheetContext.Provider value={{ state, dispatch: enhancedDispatch }}>

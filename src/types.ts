@@ -41,6 +41,7 @@ export type SpreadsheetAction =
   | { type: 'REDO' }
   | { type: 'APPLY_COLUMN_FORMULA'; payload: { column: string; formula: string } }
   | { type: 'ADD_COLUMN'; payload: ColumnConfig }
+  | { type: 'DELETE_COLUMN'; payload: { columnId: string } }
   | { type: 'TOGGLE_ARCHIVED_ROWS_VISIBILITY' }
   | { type: 'TOGGLE_COLUMN_LOCK'; payload: { columnId: string } }
   | { type: 'SET_COLUMN_FORMULA'; payload: { columnId: string; formula?: string } }
