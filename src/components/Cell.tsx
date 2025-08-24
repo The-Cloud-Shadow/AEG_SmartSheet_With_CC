@@ -46,7 +46,7 @@ export function Cell({ row, column, cellId }: CellProps) {
     // Double click is handled by single click now
   };
 
-  const commitEdit = () => {
+  const commitEdit = (moveToNextCell = false) => {
     let finalValue = editValue;
     let isFormulaCell = false;
     let formula = undefined;
@@ -68,6 +68,20 @@ export function Cell({ row, column, cellId }: CellProps) {
       }
     });
     setIsEditing(false);
+
+    // If Enter was pressed, move to next cell down (like in Google Sheets)
+    if (moveToNextCell) {
+      const match = cellId.match(/^([A-Z]+)(\d+)$/);
+      if (match) {
+        const [, column, rowStr] = match;
+        const rowNum = parseInt(rowStr);
+        const nextCellId = `${column}${rowNum + 1}`;
+        // Use a small delay to allow the current edit to complete
+        setTimeout(() => {
+          dispatch({ type: 'SELECT_CELLS', payload: [nextCellId] });
+        }, 0);
+      }
+    }
   };
 
   const cancelEdit = () => {
@@ -77,18 +91,20 @@ export function Cell({ row, column, cellId }: CellProps) {
 
   const handleBlur = () => {
     if (isEditing) {
-      commitEdit();
+      commitEdit(false); // Don't move to next cell on blur
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      commitEdit();
+      commitEdit(true); // Move to next cell when Enter is pressed
     } else if (e.key === 'Escape') {
       e.preventDefault();
       cancelEdit();
     }
+    // Arrow keys are handled by the parent Spreadsheet component when not editing
+    // When editing, they should work normally within the input field
   };
 
   const isReadOnly = column.readOnly; // Only read-only if explicitly locked

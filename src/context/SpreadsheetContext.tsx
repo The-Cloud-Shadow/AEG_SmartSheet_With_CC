@@ -497,7 +497,7 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
         col.id === columnId 
           ? { 
               ...col, 
-              type: formula ? 'formula' : 'text',
+              type: (formula ? 'formula' : 'text') as 'text' | 'number' | 'dropdown' | 'formula',
               formula: formula || undefined
             }
           : col
@@ -619,7 +619,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
       
       setTimeout(() => {
         // Get the updated archived rows after the action
-        let newArchivedRows;
+        let newArchivedRows: Set<number>;
         if (action.type === 'ARCHIVE_ROWS') {
           newArchivedRows = new Set([...state.archivedRows, ...action.payload]);
         } else {

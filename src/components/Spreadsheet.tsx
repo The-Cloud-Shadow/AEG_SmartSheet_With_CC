@@ -11,6 +11,45 @@ export function Spreadsheet() {
 
   const numRows = 50; // Larger sheet like Google Sheets
 
+  // Helper function to get the next/previous cell for arrow navigation
+  const getAdjacentCell = (currentCellId: string, direction: 'up' | 'down' | 'left' | 'right'): string | null => {
+    const match = currentCellId.match(/^([A-Z]+)(\d+)$/);
+    if (!match) return null;
+
+    const [, column, row] = match;
+    const rowNum = parseInt(row);
+    const columnIndex = state.columns.findIndex(col => col.id === column);
+
+    if (columnIndex === -1) return null;
+
+    switch (direction) {
+      case 'up':
+        if (rowNum > 1) {
+          return `${column}${rowNum - 1}`;
+        }
+        return null;
+      case 'down':
+        if (rowNum < numRows) {
+          return `${column}${rowNum + 1}`;
+        }
+        return null;
+      case 'left':
+        if (columnIndex > 0) {
+          const prevColumn = state.columns[columnIndex - 1];
+          return `${prevColumn.id}${row}`;
+        }
+        return null;
+      case 'right':
+        if (columnIndex < state.columns.length - 1) {
+          const nextColumn = state.columns[columnIndex + 1];
+          return `${nextColumn.id}${row}`;
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -37,6 +76,36 @@ export function Spreadsheet() {
         }
       } else {
         switch (e.key) {
+          case 'ArrowUp':
+          case 'ArrowDown':
+          case 'ArrowLeft':
+          case 'ArrowRight':
+            e.preventDefault();
+            if (state.selectedCells.size === 1) {
+              const currentCell = Array.from(state.selectedCells)[0];
+              const direction = e.key === 'ArrowUp' ? 'up' : 
+                               e.key === 'ArrowDown' ? 'down' : 
+                               e.key === 'ArrowLeft' ? 'left' : 'right';
+              const nextCell = getAdjacentCell(currentCell, direction);
+              if (nextCell) {
+                dispatch({ type: 'SELECT_CELLS', payload: [nextCell] });
+              }
+            } else if (state.selectedCells.size === 0 && state.columns.length > 0) {
+              // If no cell is selected, select the first cell
+              const firstCell = `${state.columns[0].id}1`;
+              dispatch({ type: 'SELECT_CELLS', payload: [firstCell] });
+            }
+            break;
+          case 'Enter':
+            e.preventDefault();
+            if (state.selectedCells.size === 1) {
+              const currentCell = Array.from(state.selectedCells)[0];
+              const nextCell = getAdjacentCell(currentCell, 'down');
+              if (nextCell) {
+                dispatch({ type: 'SELECT_CELLS', payload: [nextCell] });
+              }
+            }
+            break;
           case 'Delete':
           case 'Backspace':
             e.preventDefault();
@@ -50,7 +119,7 @@ export function Spreadsheet() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [dispatch, state.selectedCells.size]);
+  }, [dispatch, state.selectedCells, state.columns, numRows]);
 
   const handleRowSelect = (row: number, checked: boolean) => {
     const newSelectedRows = new Set(selectedRows);
@@ -82,9 +151,6 @@ export function Spreadsheet() {
     dispatch({ type: 'SORT_BY_COLUMN', payload: { column: columnId, ascending } });
   };
 
-  const handleColumnHeaderClick = (columnId: string) => {
-    // Right-click or ctrl+click to toggle lock, regular click does nothing for now
-  };
 
   const handleColumnLockToggle = (columnId: string, e: React.MouseEvent) => {
     e.preventDefault();

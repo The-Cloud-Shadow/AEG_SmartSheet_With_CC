@@ -35,3 +35,6 @@ The spreadsheet now supports real-time collaboration with automatic syncing acro
 - Fixed real-time sync for archiving functionality by correcting archived rows state synchronization to sync the updated state instead of old state
 - Added comprehensive logging for archiving sync debugging and removed cell/dropdown logging to focus on unarchiving sync issue
 - Fixed unarchiving sync race condition by removing isSyncing blocking for user-initiated archiving actions
+- Updated spreadsheet styling with modern design, better colors, hover effects, and changed cursor from crosshair to pointer
+- Enhanced cell highlighting with more prominent hover and selected states for better visual feedback
+- Added arrow key navigation functionality to move between cells using ↑↓←→ keys, with Enter key moving to cell below after editing
