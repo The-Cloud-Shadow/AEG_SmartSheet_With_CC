@@ -584,11 +584,17 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
     }
     dispatch(action);
     
-    // Only sync to Supabase after initial load and if not currently syncing from real-time
-    if (!isInitialized || isSyncing) {
+    // Only sync to Supabase after initial load
+    // Note: Don't block user-initiated archiving actions due to real-time sync status
+    if (!isInitialized) {
       if (action.type === 'ARCHIVE_ROWS' || action.type === 'UNARCHIVE_ROWS') {
-        console.log('🎯 [ENHANCED DISPATCH] Skipping sync - isInitialized:', isInitialized, 'isSyncing:', isSyncing);
+        console.log('🎯 [ENHANCED DISPATCH] Skipping sync - not initialized yet');
       }
+      return;
+    }
+    
+    // For non-archiving actions, respect the isSyncing flag to avoid conflicts
+    if (isSyncing && action.type !== 'ARCHIVE_ROWS' && action.type !== 'UNARCHIVE_ROWS') {
       return;
     }
     
@@ -623,10 +629,12 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
         
         console.log('🚀 [CONTEXT] Syncing archived rows:', Array.from(newArchivedRows));
         
-        if (isInitialized && !isSyncing) {
-          syncArchivedRows(newArchivedRows);
+        if (isInitialized) {
+          // Always sync user-initiated archiving actions, regardless of real-time sync status
+          console.log('✅ [CONTEXT] Proceeding with archive sync (user-initiated)');
+          syncArchivedRows(newArchivedRows, true); // forceSync=true for user actions
         } else {
-          console.log('⏭️ [CONTEXT] Skipping sync - not ready (initialized:', isInitialized, 'syncing:', isSyncing, ')');
+          console.log('⏭️ [CONTEXT] Skipping sync - not initialized yet');
         }
       }, 0);
     } else if (action.type === 'SET_COLUMN_FORMULA' || action.type === 'TOGGLE_COLUMN_LOCK') {

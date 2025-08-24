@@ -132,10 +132,16 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
   }, [sheetId, appCellToDbCell]);
 
   // Sync archived rows
-  const syncArchivedRows = useCallback(async (archivedRows: Set<number>) => {
-    if (isSyncing.current) {
-      console.log('🔄 [ARCHIVE SYNC] Skipping sync - currently syncing');
+  const syncArchivedRows = useCallback(async (archivedRows: Set<number>, forceSync = false) => {
+    if (isSyncing.current && !forceSync) {
+      console.log('🔄 [ARCHIVE SYNC] Skipping sync - currently syncing (use forceSync=true for user actions)');
       return;
+    }
+    
+    // If we're forcing sync during real-time operations, add a small delay
+    if (isSyncing.current && forceSync) {
+      console.log('🔄 [ARCHIVE SYNC] Force syncing during real-time operations');
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     
     try {
