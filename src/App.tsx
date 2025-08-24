@@ -10,21 +10,42 @@ function LoadingScreen() {
       alignItems: 'center',
       justifyContent: 'center',
       height: '50vh',
-      gap: '20px'
+      gap: '30px'
     }}>
       <div style={{
-        width: '40px',
-        height: '40px',
-        border: '4px solid #f3f3f3',
-        borderTop: '4px solid #007bff',
-        borderRadius: '50%',
-        animation: 'spin 1s linear infinite'
-      }}></div>
-      <p style={{ color: '#666', fontSize: '16px' }}>Loading spreadsheet data...</p>
+        width: '300px',
+        height: '6px',
+        backgroundColor: '#f0f0f0',
+        borderRadius: '3px',
+        overflow: 'hidden',
+        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)'
+      }}>
+        <div style={{
+          width: '100%',
+          height: '100%',
+          background: 'linear-gradient(90deg, #007bff, #0056b3, #007bff)',
+          borderRadius: '3px',
+          animation: 'progressLoad 2s ease-in-out infinite',
+          transformOrigin: 'left center'
+        }}></div>
+      </div>
+      <p style={{ 
+        color: '#666', 
+        fontSize: '16px', 
+        fontWeight: '500',
+        margin: 0 
+      }}>Loading spreadsheet data...</p>
       <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        @keyframes progressLoad {
+          0% {
+            transform: scaleX(0);
+          }
+          50% {
+            transform: scaleX(0.7);
+          }
+          100% {
+            transform: scaleX(1);
+          }
         }
       `}</style>
     </div>
