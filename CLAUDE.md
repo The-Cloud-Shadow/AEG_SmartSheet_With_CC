@@ -40,3 +40,5 @@ The spreadsheet now supports real-time collaboration with automatic syncing acro
 - Added arrow key navigation functionality to move between cells using ↑↓←→ keys, with Enter key moving to cell below after editing
 - Added Enter key functionality to start editing a selected cell when pressed (without needing to click the cell first)
 - Implemented add and delete column functionality with real-time sync across all users
+- Improved add column UI by replacing browser prompts with a professional modal dialog featuring form fields for name, type, and dropdown options
+- Added column rename functionality with dedicated modal dialog accessible through the column dropdown menu

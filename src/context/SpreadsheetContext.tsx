@@ -565,6 +565,18 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
       return saveToHistory(newState);
     }
 
+    case 'RENAME_COLUMN': {
+      const { columnId, newLabel } = action.payload;
+      const newColumns = state.columns.map(col => 
+        col.id === columnId 
+          ? { ...col, label: newLabel }
+          : col
+      );
+      const newState = { ...state, columns: newColumns };
+      saveToStorage(newState);
+      return saveToHistory(newState);
+    }
+
     case 'LOAD_DATA': {
       return { ...state, cells: action.payload.cells };
     }
@@ -664,7 +676,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
           console.log('⏭️ [CONTEXT] Skipping sync - not initialized yet');
         }
       }, 0);
-    } else if (action.type === 'SET_COLUMN_FORMULA' || action.type === 'TOGGLE_COLUMN_LOCK' || action.type === 'ADD_COLUMN' || action.type === 'DELETE_COLUMN') {
+    } else if (action.type === 'SET_COLUMN_FORMULA' || action.type === 'TOGGLE_COLUMN_LOCK' || action.type === 'ADD_COLUMN' || action.type === 'DELETE_COLUMN' || action.type === 'RENAME_COLUMN') {
       // Sync column changes after the state update
       setTimeout(() => {
         if (action.type === 'SET_COLUMN_FORMULA') {
@@ -672,6 +684,10 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
           const column = state.columns[columnIndex];
           if (column) syncColumn(column, columnIndex);
         } else if (action.type === 'TOGGLE_COLUMN_LOCK') {
+          const columnIndex = state.columns.findIndex(col => col.id === action.payload.columnId);
+          const column = state.columns[columnIndex];
+          if (column) syncColumn(column, columnIndex);
+        } else if (action.type === 'RENAME_COLUMN') {
           const columnIndex = state.columns.findIndex(col => col.id === action.payload.columnId);
           const column = state.columns[columnIndex];
           if (column) syncColumn(column, columnIndex);

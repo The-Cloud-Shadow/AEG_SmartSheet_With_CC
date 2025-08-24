@@ -8,6 +8,9 @@ export function Spreadsheet() {
   const { state, dispatch } = useSpreadsheet();
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [activeColumnMenu, setActiveColumnMenu] = useState<string | null>(null);
+  const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [showRenameColumnModal, setShowRenameColumnModal] = useState(false);
+  const [renameColumnId, setRenameColumnId] = useState<string | null>(null);
 
   const numRows = 50; // Larger sheet like Google Sheets
 
@@ -184,56 +187,13 @@ export function Spreadsheet() {
   };
 
   const handleAddColumn = () => {
-    const columnIds = state.columns.map(col => col.id);
-    
-    // Generate next column ID (A, B, C, ... Z, AA, AB, etc.)
-    const getNextColumnId = (): string => {
-      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      const existing = new Set(columnIds);
-      
-      // Single letters first
-      for (let i = 0; i < 26; i++) {
-        const id = letters[i];
-        if (!existing.has(id)) return id;
-      }
-      
-      // Double letters
-      for (let i = 0; i < 26; i++) {
-        for (let j = 0; j < 26; j++) {
-          const id = letters[i] + letters[j];
-          if (!existing.has(id)) return id;
-        }
-      }
-      
-      return 'COL' + Date.now(); // Fallback
-    };
+    setShowAddColumnModal(true);
+  };
 
-    const newColumnId = getNextColumnId();
-    const columnName = prompt('Enter column name:', `Column ${newColumnId}`);
-    
-    if (columnName !== null && columnName.trim()) {
-      const columnType = prompt('Enter column type (text/number/dropdown):', 'text') as 'text' | 'number' | 'dropdown' | null;
-      
-      if (columnType && ['text', 'number', 'dropdown'].includes(columnType)) {
-        let dropdownOptions: string[] | undefined = undefined;
-        
-        if (columnType === 'dropdown') {
-          const options = prompt('Enter dropdown options (comma-separated):', 'Option1,Option2,Option3');
-          if (options) {
-            dropdownOptions = options.split(',').map(opt => opt.trim()).filter(opt => opt);
-          }
-        }
-        
-        const newColumn: ColumnConfig = {
-          id: newColumnId,
-          label: columnName.trim(),
-          type: columnType,
-          dropdownOptions
-        };
-        
-        dispatch({ type: 'ADD_COLUMN', payload: newColumn });
-      }
-    }
+  const handleRenameColumn = (columnId: string) => {
+    setRenameColumnId(columnId);
+    setShowRenameColumnModal(true);
+    setActiveColumnMenu(null);
   };
 
   const handleDeleteColumn = (columnId: string) => {
@@ -388,55 +348,57 @@ export function Spreadsheet() {
                 style={{
                   ...headerStyle,
                   backgroundColor: column.readOnly ? '#f0f0f0' : headerStyle.backgroundColor,
-                  position: 'relative'
                 }}
                 onContextMenu={(e) => handleColumnLockToggle(column.id, e)}
                 title={`${column.label}${column.readOnly ? ' (Locked)' : ''} - Right-click to ${column.readOnly ? 'unlock' : 'lock'}`}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '5px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                    {column.label}
-                    {column.readOnly && <span style={{ fontSize: '10px' }}>🔒</span>}
-                    {column.type === 'formula' && <span style={{ fontSize: '10px', color: '#1a73e8' }}>f(x)</span>}
+                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '5px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      {column.label}
+                      {column.readOnly && <span style={{ fontSize: '10px' }}>🔒</span>}
+                      {column.type === 'formula' && <span style={{ fontSize: '10px', color: '#1a73e8' }}>f(x)</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                      <button
+                        onClick={() => handleSort(column.id, true)}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        onClick={() => handleSort(column.id, false)}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        onClick={(e) => handleColumnMenuToggle(column.id, e)}
+                        style={{ 
+                          border: 'none', 
+                          background: 'none', 
+                          cursor: 'pointer', 
+                          fontSize: '12px', 
+                          padding: '2px 4px',
+                          borderRadius: '2px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        ⋮
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                    <button
-                      onClick={() => handleSort(column.id, true)}
-                      style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      onClick={() => handleSort(column.id, false)}
-                      style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px' }}
-                    >
-                      ↓
-                    </button>
-                    <button
-                      onClick={(e) => handleColumnMenuToggle(column.id, e)}
-                      style={{ 
-                        border: 'none', 
-                        background: 'none', 
-                        cursor: 'pointer', 
-                        fontSize: '12px', 
-                        padding: '2px 4px',
-                        borderRadius: '2px',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                    >
-                      ⋮
-                    </button>
-                  </div>
+                  {activeColumnMenu === column.id && (
+                    <ColumnDropdownMenu 
+                      column={column}
+                      onEditFormula={() => handleEditFormula(column.id)}
+                      onLockToggle={() => handleLockColumn(column.id)}
+                      onRename={() => handleRenameColumn(column.id)}
+                      onDelete={() => handleDeleteColumn(column.id)}
+                    />
+                  )}
                 </div>
-                {activeColumnMenu === column.id && (
-                  <ColumnDropdownMenu 
-                    column={column}
-                    onEditFormula={() => handleEditFormula(column.id)}
-                    onLockToggle={() => handleLockColumn(column.id)}
-                    onDelete={() => handleDeleteColumn(column.id)}
-                  />
-                )}
               </th>
             ))}
             <th style={headerStyle}>
@@ -492,6 +454,33 @@ export function Spreadsheet() {
         </tbody>
         </table>
       </div>
+      
+      {showAddColumnModal && (
+        <AddColumnModal 
+          onClose={() => setShowAddColumnModal(false)}
+          onAddColumn={(columnConfig) => {
+            dispatch({ type: 'ADD_COLUMN', payload: columnConfig });
+            setShowAddColumnModal(false);
+          }}
+          existingColumnIds={state.columns.map(col => col.id)}
+        />
+      )}
+      
+      {showRenameColumnModal && renameColumnId && (
+        <RenameColumnModal 
+          columnId={renameColumnId}
+          currentLabel={state.columns.find(col => col.id === renameColumnId)?.label || ''}
+          onClose={() => {
+            setShowRenameColumnModal(false);
+            setRenameColumnId(null);
+          }}
+          onRename={(newLabel) => {
+            dispatch({ type: 'RENAME_COLUMN', payload: { columnId: renameColumnId, newLabel } });
+            setShowRenameColumnModal(false);
+            setRenameColumnId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -500,10 +489,360 @@ interface ColumnDropdownMenuProps {
   column: ColumnConfig;
   onEditFormula: () => void;
   onLockToggle: () => void;
+  onRename: () => void;
   onDelete: () => void;
 }
 
-function ColumnDropdownMenu({ column, onEditFormula, onLockToggle, onDelete }: ColumnDropdownMenuProps) {
+interface RenameColumnModalProps {
+  columnId: string;
+  currentLabel: string;
+  onClose: () => void;
+  onRename: (newLabel: string) => void;
+}
+
+function RenameColumnModal({ columnId, currentLabel, onClose, onRename }: RenameColumnModalProps) {
+  const [columnName, setColumnName] = useState(currentLabel);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!columnName.trim()) {
+      return;
+    }
+
+    onRename(columnName.trim());
+  };
+
+  const modalOverlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  };
+
+  const modalStyle: React.CSSProperties = {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '24px',
+    width: '400px',
+    maxWidth: '90vw',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+  };
+
+  const formGroupStyle: React.CSSProperties = {
+    marginBottom: '16px',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    marginBottom: '6px',
+    fontWeight: '600',
+    color: '#374151',
+    fontSize: '14px',
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '8px 12px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+    outline: 'none',
+    transition: 'border-color 0.2s ease-in-out',
+  };
+
+  const buttonGroupStyle: React.CSSProperties = {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    marginTop: '24px',
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: '8px 16px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease-in-out',
+    border: 'none',
+  };
+
+  const primaryButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    color: 'white',
+  };
+
+  const secondaryButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    border: '1px solid #d1d5db',
+  };
+
+  return (
+    <div style={modalOverlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <h2 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: '600', color: '#111827' }}>
+          Rename Column {columnId}
+        </h2>
+        
+        <form onSubmit={handleSubmit}>
+          <div style={formGroupStyle}>
+            <label style={labelStyle}>Column Name</label>
+            <input
+              type="text"
+              value={columnName}
+              onChange={(e) => setColumnName(e.target.value)}
+              style={inputStyle}
+              placeholder="Enter column name"
+              autoFocus
+            />
+          </div>
+
+          <div style={buttonGroupStyle}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={secondaryButtonStyle}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={primaryButtonStyle}
+              disabled={!columnName.trim()}
+            >
+              Rename
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+interface AddColumnModalProps {
+  onClose: () => void;
+  onAddColumn: (column: ColumnConfig) => void;
+  existingColumnIds: string[];
+}
+
+function AddColumnModal({ onClose, onAddColumn, existingColumnIds }: AddColumnModalProps) {
+  const [columnName, setColumnName] = useState('');
+  const [columnType, setColumnType] = useState<'text' | 'number' | 'dropdown'>('text');
+  const [dropdownOptions, setDropdownOptions] = useState('');
+
+  // Generate next column ID (A, B, C, ... Z, AA, AB, etc.)
+  const getNextColumnId = (): string => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const existing = new Set(existingColumnIds);
+    
+    // Single letters first
+    for (let i = 0; i < 26; i++) {
+      const id = letters[i];
+      if (!existing.has(id)) return id;
+    }
+    
+    // Double letters
+    for (let i = 0; i < 26; i++) {
+      for (let j = 0; j < 26; j++) {
+        const id = letters[i] + letters[j];
+        if (!existing.has(id)) return id;
+      }
+    }
+    
+    return 'COL' + Date.now(); // Fallback
+  };
+
+  const nextColumnId = getNextColumnId();
+
+  useEffect(() => {
+    setColumnName(`Column ${nextColumnId}`);
+  }, [nextColumnId]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!columnName.trim()) {
+      return;
+    }
+
+    const newColumn: ColumnConfig = {
+      id: nextColumnId,
+      label: columnName.trim(),
+      type: columnType,
+      dropdownOptions: columnType === 'dropdown' 
+        ? dropdownOptions.split(',').map(opt => opt.trim()).filter(opt => opt)
+        : undefined
+    };
+
+    onAddColumn(newColumn);
+  };
+
+  const modalOverlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  };
+
+  const modalStyle: React.CSSProperties = {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '24px',
+    width: '400px',
+    maxWidth: '90vw',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+  };
+
+  const formGroupStyle: React.CSSProperties = {
+    marginBottom: '16px',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    marginBottom: '6px',
+    fontWeight: '600',
+    color: '#374151',
+    fontSize: '14px',
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '8px 12px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+    outline: 'none',
+    transition: 'border-color 0.2s ease-in-out',
+  };
+
+  const selectStyle: React.CSSProperties = {
+    ...inputStyle,
+    cursor: 'pointer',
+  };
+
+  const textareaStyle: React.CSSProperties = {
+    ...inputStyle,
+    minHeight: '80px',
+    resize: 'vertical',
+  };
+
+  const buttonGroupStyle: React.CSSProperties = {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    marginTop: '24px',
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: '8px 16px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease-in-out',
+    border: 'none',
+  };
+
+  const primaryButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    color: 'white',
+  };
+
+  const secondaryButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    border: '1px solid #d1d5db',
+  };
+
+  return (
+    <div style={modalOverlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <h2 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: '600', color: '#111827' }}>
+          Add New Column
+        </h2>
+        
+        <form onSubmit={handleSubmit}>
+          <div style={formGroupStyle}>
+            <label style={labelStyle}>Column Name</label>
+            <input
+              type="text"
+              value={columnName}
+              onChange={(e) => setColumnName(e.target.value)}
+              style={inputStyle}
+              placeholder="Enter column name"
+              autoFocus
+            />
+          </div>
+
+          <div style={formGroupStyle}>
+            <label style={labelStyle}>Column Type</label>
+            <select
+              value={columnType}
+              onChange={(e) => setColumnType(e.target.value as 'text' | 'number' | 'dropdown')}
+              style={selectStyle}
+            >
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+              <option value="dropdown">Dropdown</option>
+            </select>
+          </div>
+
+          {columnType === 'dropdown' && (
+            <div style={formGroupStyle}>
+              <label style={labelStyle}>Dropdown Options</label>
+              <textarea
+                value={dropdownOptions}
+                onChange={(e) => setDropdownOptions(e.target.value)}
+                style={textareaStyle}
+                placeholder="Enter options separated by commas&#10;Example: Option1, Option2, Option3"
+              />
+              <small style={{ color: '#6b7280', fontSize: '12px' }}>
+                Separate options with commas
+              </small>
+            </div>
+          )}
+
+          <div style={buttonGroupStyle}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={secondaryButtonStyle}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={primaryButtonStyle}
+              disabled={!columnName.trim()}
+            >
+              Add Column
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ColumnDropdownMenu({ column, onEditFormula, onLockToggle, onRename, onDelete }: ColumnDropdownMenuProps) {
   const menuStyle: React.CSSProperties = {
     position: 'absolute',
     top: '100%',
@@ -556,6 +895,14 @@ function ColumnDropdownMenu({ column, onEditFormula, onLockToggle, onDelete }: C
         onClick={onLockToggle}
       >
         {column.readOnly ? '🔓 Unlock Column' : '🔒 Lock Column'}
+      </button>
+      <button
+        style={hoveredItem === 'rename' ? menuItemHoverStyle : menuItemStyle}
+        onMouseEnter={() => setHoveredItem('rename')}
+        onMouseLeave={() => setHoveredItem(null)}
+        onClick={onRename}
+      >
+        ✏️ Rename Column
       </button>
       <button
         style={hoveredItem === 'delete' ? { ...menuItemHoverStyle, color: '#dc2626' } : { ...menuItemStyle, color: '#dc2626' }}
