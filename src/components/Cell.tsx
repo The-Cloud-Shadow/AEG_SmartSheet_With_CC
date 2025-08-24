@@ -98,13 +98,13 @@ export function Cell({ row, column, cellId }: CellProps) {
   let backgroundColor = '#ffffff'; // default
   if (isFormulaCell) backgroundColor = '#f3e5f5'; // formula cells
   if (isReadOnly) backgroundColor = '#fafafa'; // read-only cells
-  if (isHovered && !isReadOnly && !isSelected) backgroundColor = '#f0f4ff'; // hover effect (only if not selected)
-  if (isSelected) backgroundColor = '#e3f2fd'; // selected takes highest priority
+  if (isHovered && !isReadOnly && !isSelected) backgroundColor = '#e8f2ff'; // more prominent hover effect
+  if (isSelected) backgroundColor = '#1976d2'; // more prominent selected state
   
   const cellStyle: React.CSSProperties = {
-    border: '1px solid #e1e5e9',
-    borderRight: '1px solid #e1e5e9',
-    borderBottom: '1px solid #e1e5e9',
+    border: isSelected ? '2px solid #0d47a1' : '1px solid #e1e5e9',
+    borderRight: isSelected ? '2px solid #0d47a1' : '1px solid #e1e5e9',
+    borderBottom: isSelected ? '2px solid #0d47a1' : '1px solid #e1e5e9',
     padding: '8px 12px',
     width: '120px',
     minWidth: '120px',
@@ -117,7 +117,7 @@ export function Cell({ row, column, cellId }: CellProps) {
     position: 'relative',
     fontStyle: isFormulaCell ? 'italic' : 'normal',
     fontSize: '14px',
-    color: isFormulaCell ? '#7b1fa2' : '#2c3e50',
+    color: isSelected ? '#ffffff' : (isFormulaCell ? '#7b1fa2' : '#2c3e50'),
     fontFamily: '"Inter", "Segoe UI", "Roboto", sans-serif',
     lineHeight: '20px',
     verticalAlign: 'top',
