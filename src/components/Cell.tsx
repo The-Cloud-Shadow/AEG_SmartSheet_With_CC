@@ -10,7 +10,6 @@ interface CellProps {
 
 export function Cell({ row, column, cellId }: CellProps) {
   const { state, dispatch } = useSpreadsheet();
-  const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
@@ -19,12 +18,16 @@ export function Cell({ row, column, cellId }: CellProps) {
   const value = cell?.value || '';
   const isSelected = state.selectedCells.has(cellId);
   const isArchived = state.archivedRows.has(row);
+  const isEditing = state.editingCell === cellId;
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
+      // Show the formula in edit mode if it's a formula cell
+      const displayValue = cell?.isFormula && cell?.formula ? `=${cell.formula}` : value;
+      setEditValue(displayValue);
     }
-  }, [isEditing]);
+  }, [isEditing, cell, value]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -34,10 +37,7 @@ export function Cell({ row, column, cellId }: CellProps) {
     
     // Start editing immediately on single click (like Google Sheets)
     if (!isEditing) {
-      setIsEditing(true);
-      // Show the formula in edit mode if it's a formula cell
-      const displayValue = cell?.isFormula && cell?.formula ? `=${cell.formula}` : value;
-      setEditValue(displayValue);
+      dispatch({ type: 'START_EDITING_CELL', payload: { cellId } });
     }
   };
 
@@ -67,7 +67,9 @@ export function Cell({ row, column, cellId }: CellProps) {
         isFormula: isFormulaCell
       }
     });
-    setIsEditing(false);
+    
+    // Stop editing
+    dispatch({ type: 'STOP_EDITING_CELL' });
 
     // If Enter was pressed, move to next cell down (like in Google Sheets)
     if (moveToNextCell) {
@@ -85,7 +87,7 @@ export function Cell({ row, column, cellId }: CellProps) {
   };
 
   const cancelEdit = () => {
-    setIsEditing(false);
+    dispatch({ type: 'STOP_EDITING_CELL' });
     setEditValue('');
   };
 

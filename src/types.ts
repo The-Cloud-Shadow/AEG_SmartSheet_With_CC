@@ -24,6 +24,7 @@ export interface SpreadsheetState {
   historyIndex: number;
   selectedCells: Set<string>;
   showArchivedRows: boolean;
+  editingCell: string | null;
 }
 
 export type SpreadsheetAction =
@@ -34,6 +35,8 @@ export type SpreadsheetAction =
   | { type: 'DELETE_SELECTED_CELLS' }
   | { type: 'SELECT_CELLS'; payload: string[] }
   | { type: 'DESELECT_CELLS'; payload: string[] }
+  | { type: 'START_EDITING_CELL'; payload: { cellId: string } }
+  | { type: 'STOP_EDITING_CELL' }
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'APPLY_COLUMN_FORMULA'; payload: { column: string; formula: string } }

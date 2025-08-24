@@ -38,3 +38,4 @@ The spreadsheet now supports real-time collaboration with automatic syncing acro
 - Updated spreadsheet styling with modern design, better colors, hover effects, and changed cursor from crosshair to pointer
 - Enhanced cell highlighting with more prominent hover and selected states for better visual feedback
 - Added arrow key navigation functionality to move between cells using ↑↓←→ keys, with Enter key moving to cell below after editing
+- Added Enter key functionality to start editing a selected cell when pressed (without needing to click the cell first)

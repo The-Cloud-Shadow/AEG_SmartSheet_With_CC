@@ -98,12 +98,10 @@ export function Spreadsheet() {
             break;
           case 'Enter':
             e.preventDefault();
-            if (state.selectedCells.size === 1) {
+            if (state.selectedCells.size === 1 && !state.editingCell) {
+              // If a cell is selected but not being edited, start editing
               const currentCell = Array.from(state.selectedCells)[0];
-              const nextCell = getAdjacentCell(currentCell, 'down');
-              if (nextCell) {
-                dispatch({ type: 'SELECT_CELLS', payload: [nextCell] });
-              }
+              dispatch({ type: 'START_EDITING_CELL', payload: { cellId: currentCell } });
             }
             break;
           case 'Delete':
@@ -278,8 +276,15 @@ export function Spreadsheet() {
     boxShadow: 'none',
   };
 
+  const handleContainerClick = (e: React.MouseEvent) => {
+    // If clicking outside of any cell, stop editing
+    if (state.editingCell && e.target === e.currentTarget) {
+      dispatch({ type: 'STOP_EDITING_CELL' });
+    }
+  };
+
   return (
-    <div>
+    <div onClick={handleContainerClick}>
       <Toolbar />
       
       <div style={archiveButtonsStyle}>

@@ -214,6 +214,7 @@ const loadFromStorage = (): SpreadsheetState => {
         historyIndex: -1,
         selectedCells: new Set(),
         showArchivedRows: parsed.showArchivedRows !== undefined ? parsed.showArchivedRows : true,
+        editingCell: null,
       };
     }
   } catch (error) {
@@ -230,6 +231,7 @@ const loadFromStorage = (): SpreadsheetState => {
     historyIndex: -1,
     selectedCells: new Set(),
     showArchivedRows: true,
+    editingCell: null,
   };
 };
 
@@ -556,6 +558,14 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
 
     case 'LOAD_ARCHIVED_ROWS': {
       return { ...state, archivedRows: new Set(action.payload) };
+    }
+
+    case 'START_EDITING_CELL': {
+      return { ...state, editingCell: action.payload.cellId };
+    }
+
+    case 'STOP_EDITING_CELL': {
+      return { ...state, editingCell: null };
     }
 
     default:
