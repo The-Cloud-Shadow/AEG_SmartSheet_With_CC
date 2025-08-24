@@ -1,11 +1,11 @@
 :root {
-  --primary-color: #4f46e5;
-  --primary-dark: #3730a3;
+  --primary-color: #2ea3f2;
+  --primary-dark: #1e7bb8;
   --background-color: #f8fafc;
-  --text-color: #1e293b;
-  --border-color: #e2e8f0;
+  --text-color: #333333;
+  --border-color: #eeeeee;
   --hover-color: #f1f5f9;
-  --accent-color: #06b6d4;
+  --accent-color: #2ea3f2;
 }
 
 .App {

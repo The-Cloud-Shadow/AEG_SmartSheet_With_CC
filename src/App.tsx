@@ -10,7 +10,7 @@ function LoadingScreen() {
       alignItems: 'center',
       justifyContent: 'center',
       height: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #2ea3f2 0%, #1e7bb8 100%)',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       <div style={{
@@ -27,7 +27,7 @@ function LoadingScreen() {
         <div style={{
           width: '48px',
           height: '48px',
-          background: 'linear-gradient(135deg, #667eea, #764ba2)',
+          background: 'linear-gradient(135deg, #2ea3f2, #1e7bb8)',
           borderRadius: '12px',
           margin: '0 auto 24px',
           display: 'flex',
@@ -68,7 +68,7 @@ function LoadingScreen() {
             top: '0',
             left: '0',
             height: '100%',
-            background: 'linear-gradient(90deg, #667eea, #764ba2, #667eea)',
+            background: 'linear-gradient(90deg, #2ea3f2, #1e7bb8, #2ea3f2)',
             borderRadius: '8px',
             animation: 'modernProgress 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite',
             backgroundSize: '200% 100%'
@@ -122,8 +122,8 @@ function AppContent() {
   return (
     <div className="App">
       <header style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+        background: 'linear-gradient(135deg, #2ea3f2 0%, #1e7bb8 100%)',
+        boxShadow: '0 2px 20px rgba(46, 163, 242, 0.15)',
         padding: '0 24px',
         height: '72px',
         display: 'flex',
