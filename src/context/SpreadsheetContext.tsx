@@ -555,11 +555,7 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
     }
 
     case 'LOAD_ARCHIVED_ROWS': {
-      console.log('📥 [REDUCER] LOAD_ARCHIVED_ROWS - payload:', action.payload);
-      console.log('📥 [REDUCER] LOAD_ARCHIVED_ROWS - before:', Array.from(state.archivedRows));
-      const newState = { ...state, archivedRows: new Set(action.payload) };
-      console.log('📥 [REDUCER] LOAD_ARCHIVED_ROWS - after:', Array.from(newState.archivedRows));
-      return newState;
+      return { ...state, archivedRows: new Set(action.payload) };
     }
 
     default:
@@ -582,12 +578,17 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
 
   // Create enhanced dispatch that also syncs to Supabase
   const enhancedDispatch = useCallback((action: SpreadsheetAction) => {
-    console.log('🎯 [ENHANCED DISPATCH] Called with action:', action.type, action.payload);
+    // Only log archiving-related actions
+    if (action.type === 'ARCHIVE_ROWS' || action.type === 'UNARCHIVE_ROWS') {
+      console.log('🎯 [ENHANCED DISPATCH] Called with action:', action.type, action.payload);
+    }
     dispatch(action);
     
     // Only sync to Supabase after initial load and if not currently syncing from real-time
     if (!isInitialized || isSyncing) {
-      console.log('🎯 [ENHANCED DISPATCH] Skipping sync - isInitialized:', isInitialized, 'isSyncing:', isSyncing);
+      if (action.type === 'ARCHIVE_ROWS' || action.type === 'UNARCHIVE_ROWS') {
+        console.log('🎯 [ENHANCED DISPATCH] Skipping sync - isInitialized:', isInitialized, 'isSyncing:', isSyncing);
+      }
       return;
     }
     
@@ -608,30 +609,24 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
       }
     } else if (action.type === 'ARCHIVE_ROWS' || action.type === 'UNARCHIVE_ROWS') {
       // Sync archived rows after the state update with the NEW state
-      console.log(`🎯 [CONTEXT] Processing ${action.type} action`);
-      console.log('🎯 [CONTEXT] Action payload (rows to archive/unarchive):', action.payload);
-      console.log('🎯 [CONTEXT] Current archived rows before action:', Array.from(state.archivedRows));
-      console.log('🎯 [CONTEXT] isInitialized:', isInitialized, 'isSyncing:', isSyncing);
+      console.log(`🎯 [CONTEXT] Processing ${action.type} action with rows:`, action.payload);
       
       setTimeout(() => {
         // Get the updated archived rows after the action
         let newArchivedRows;
         if (action.type === 'ARCHIVE_ROWS') {
           newArchivedRows = new Set([...state.archivedRows, ...action.payload]);
-          console.log('📥 [CONTEXT] After ARCHIVE_ROWS - new archived rows:', Array.from(newArchivedRows));
         } else {
           newArchivedRows = new Set(state.archivedRows);
           action.payload.forEach(row => newArchivedRows.delete(row));
-          console.log('📤 [CONTEXT] After UNARCHIVE_ROWS - new archived rows:', Array.from(newArchivedRows));
         }
         
-        console.log('🚀 [CONTEXT] Calling syncArchivedRows with:', Array.from(newArchivedRows));
-        console.log('🚀 [CONTEXT] Should sync?', isInitialized && !isSyncing ? 'YES' : 'NO');
+        console.log('🚀 [CONTEXT] Syncing archived rows:', Array.from(newArchivedRows));
         
         if (isInitialized && !isSyncing) {
           syncArchivedRows(newArchivedRows);
         } else {
-          console.log('⏭️ [CONTEXT] Skipping sync - not initialized or currently syncing');
+          console.log('⏭️ [CONTEXT] Skipping sync - not ready (initialized:', isInitialized, 'syncing:', isSyncing, ')');
         }
       }, 0);
     } else if (action.type === 'SET_COLUMN_FORMULA' || action.type === 'TOGGLE_COLUMN_LOCK') {

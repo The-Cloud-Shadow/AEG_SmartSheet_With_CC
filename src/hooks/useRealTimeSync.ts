@@ -47,8 +47,6 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
   // Load initial data from Supabase
   const loadInitialData = useCallback(async () => {
     try {
-      console.log('Loading initial data from Supabase...');
-      
       // Load cells
       const { data: cellsData, error: cellsError } = await supabase
         .from('cells')
@@ -107,7 +105,6 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
 
       isSyncing.current = false;
       isInitialized.current = true;
-      console.log('Initial data loaded successfully');
       
     } catch (error) {
       console.error('Error in loadInitialData:', error);
@@ -301,6 +298,7 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
           const archivedRows = data ? data.map(row => row.row_number) : [];
           console.log('📊 [ARCHIVE REALTIME] Mapped archived rows:', archivedRows);
           console.log('🚀 [ARCHIVE REALTIME] Dispatching LOAD_ARCHIVED_ROWS with:', archivedRows);
+          console.log('🚀 [ARCHIVE REALTIME] This will update archived rows from real-time event');
           
           // Temporarily set syncing flag to prevent infinite loops while we update state
           isSyncing.current = true;
