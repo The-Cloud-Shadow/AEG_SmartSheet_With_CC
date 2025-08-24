@@ -42,3 +42,4 @@ The spreadsheet now supports real-time collaboration with automatic syncing acro
 - Implemented add and delete column functionality with real-time sync across all users
 - Improved add column UI by replacing browser prompts with a professional modal dialog featuring form fields for name, type, and dropdown options
 - Added column rename functionality with dedicated modal dialog accessible through the column dropdown menu
+- Fixed React warnings about conflicting CSS properties and restored sticky header positioning that was broken during column menu implementation

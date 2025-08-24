@@ -567,11 +567,16 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
 
     case 'RENAME_COLUMN': {
       const { columnId, newLabel } = action.payload;
+      console.log('🔄 [REDUCER] RENAME_COLUMN - columnId:', columnId, 'newLabel:', newLabel);
+      console.log('🔄 [REDUCER] RENAME_COLUMN - current columns:', state.columns.map(col => `${col.id}: ${col.label}`));
+      
       const newColumns = state.columns.map(col => 
         col.id === columnId 
           ? { ...col, label: newLabel }
           : col
       );
+      console.log('🔄 [REDUCER] RENAME_COLUMN - updated columns:', newColumns.map(col => `${col.id}: ${col.label}`));
+      
       const newState = { ...state, columns: newColumns };
       saveToStorage(newState);
       return saveToHistory(newState);
@@ -617,8 +622,8 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
 
   // Create enhanced dispatch that also syncs to Supabase
   const enhancedDispatch = useCallback((action: SpreadsheetAction) => {
-    // Only log archiving-related actions
-    if (action.type === 'ARCHIVE_ROWS' || action.type === 'UNARCHIVE_ROWS') {
+    // Only log archiving-related actions and column rename actions
+    if (action.type === 'ARCHIVE_ROWS' || action.type === 'UNARCHIVE_ROWS' || action.type === 'RENAME_COLUMN') {
       console.log('🎯 [ENHANCED DISPATCH] Called with action:', action.type, action.payload);
     }
     dispatch(action);
@@ -632,8 +637,11 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    // For non-archiving actions, respect the isSyncing flag to avoid conflicts
-    if (isSyncing && action.type !== 'ARCHIVE_ROWS' && action.type !== 'UNARCHIVE_ROWS') {
+    // For non-archiving and non-column actions, respect the isSyncing flag to avoid conflicts
+    // Allow user-initiated column actions to proceed even during real-time sync
+    const userInitiatedActions = ['ARCHIVE_ROWS', 'UNARCHIVE_ROWS', 'RENAME_COLUMN', 'SET_COLUMN_FORMULA', 'TOGGLE_COLUMN_LOCK', 'ADD_COLUMN', 'DELETE_COLUMN'];
+    if (isSyncing && !userInitiatedActions.includes(action.type)) {
+      console.log('🎯 [ENHANCED DISPATCH] Skipping sync - currently syncing and not a user-initiated action');
       return;
     }
     
@@ -688,9 +696,23 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
           const column = state.columns[columnIndex];
           if (column) syncColumn(column, columnIndex);
         } else if (action.type === 'RENAME_COLUMN') {
+          console.log('🔄 [SYNC] RENAME_COLUMN - finding column in current state:', action.payload.columnId);
+          console.log('🔄 [SYNC] RENAME_COLUMN - current state columns:', state.columns.map(col => `${col.id}: ${col.label}`));
+          
           const columnIndex = state.columns.findIndex(col => col.id === action.payload.columnId);
-          const column = state.columns[columnIndex];
-          if (column) syncColumn(column, columnIndex);
+          console.log('🔄 [SYNC] RENAME_COLUMN - found column at index:', columnIndex);
+          
+          if (columnIndex >= 0) {
+            // Create the updated column with the new label since the state hasn't been updated yet
+            const updatedColumn = { 
+              ...state.columns[columnIndex], 
+              label: action.payload.newLabel 
+            };
+            console.log('🔄 [SYNC] RENAME_COLUMN - syncing updated column:', updatedColumn);
+            syncColumn(updatedColumn, columnIndex);
+          } else {
+            console.error('🔄 [SYNC] RENAME_COLUMN - column not found!');
+          }
         } else if (action.type === 'ADD_COLUMN') {
           const newColumn = action.payload;
           const newColumnIndex = state.columns.length; // Will be the last position

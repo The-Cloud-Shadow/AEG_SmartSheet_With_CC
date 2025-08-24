@@ -212,7 +212,12 @@ export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSy
 
   // Sync column updates to Supabase
   const syncColumnUpdate = useCallback(async (column: ColumnConfig, position: number = 0) => {
-    if (isSyncing.current) return;
+    console.log('🔄 [SYNC COLUMN] Starting sync for column:', column.id, 'label:', column.label);
+    
+    if (isSyncing.current) {
+      console.log('🔄 [SYNC COLUMN] Skipping sync - currently syncing');
+      return;
+    }
     
     try {
       const dbColumn = {
@@ -226,15 +231,20 @@ export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSy
         position: position
       };
       
-      const { error } = await supabase
+      console.log('🔄 [SYNC COLUMN] Syncing data to Supabase:', dbColumn);
+      
+      const { data, error } = await supabase
         .from('columns')
-        .upsert(dbColumn, { onConflict: 'id,sheet_id' });
+        .upsert(dbColumn, { onConflict: 'id,sheet_id' })
+        .select();
 
       if (error) {
-        console.error('Error syncing column update:', error);
+        console.error('❌ [SYNC COLUMN] Error syncing column update:', error);
+      } else {
+        console.log('✅ [SYNC COLUMN] Successfully synced column:', data);
       }
     } catch (error) {
-      console.error('Error in syncColumnUpdate:', error);
+      console.error('❌ [SYNC COLUMN] Fatal error in syncColumnUpdate:', error);
     }
   }, [sheetId]);
 
@@ -373,22 +383,38 @@ export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSy
           table: 'columns',
           filter: `sheet_id=eq.${sheetId}` 
         },
-        async (_payload) => {
-          if (isSyncing.current) return;
+        async (payload) => {
+          console.log('📡 [COLUMN REALTIME] Received column event:', payload.eventType);
+          console.log('📡 [COLUMN REALTIME] Payload:', payload);
           
+          if (isSyncing.current) {
+            console.log('📡 [COLUMN REALTIME] Skipping - currently syncing');
+            return;
+          }
+          
+          console.log('📡 [COLUMN REALTIME] Reloading columns from database...');
           // Reload columns data
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('columns')
             .select('*')
             .eq('sheet_id', sheetId)
             .order('position');
           
+          if (error) {
+            console.error('❌ [COLUMN REALTIME] Error loading columns:', error);
+            return;
+          }
+          
           if (data) {
+            console.log('📡 [COLUMN REALTIME] Loaded columns from database:', data.map(col => `${col.id}: ${col.label}`));
             const columns = data.map(dbColumnToAppColumn);
+            console.log('📡 [COLUMN REALTIME] Dispatching LOAD_COLUMNS');
+            
             isSyncing.current = true;
             dispatch({ type: 'LOAD_COLUMNS', payload: columns });
             
             setTimeout(() => {
+              console.log('📡 [COLUMN REALTIME] Reset isSyncing flag');
               isSyncing.current = false;
             }, 100);
           }
