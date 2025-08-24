@@ -219,8 +219,6 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
 
   // Set up real-time subscriptions
   useEffect(() => {
-    console.log('Setting up real-time subscriptions...');
-    
     if (!isInitialized.current) {
       loadInitialData();
     }
@@ -343,12 +341,9 @@ export function useRealTimeSync({ state, dispatch, sheetId = 'default' }: UseRea
           }
         }
       )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
-      console.log('Unsubscribing from real-time channel');
       channel.unsubscribe();
     };
   }, [sheetId, loadInitialData, dispatch, dbCellToAppCell]);

@@ -64,6 +64,7 @@ export function Spreadsheet() {
 
   const handleArchiveSelected = () => {
     if (selectedRows.size > 0) {
+      console.log('🔘 [UI] Archive button clicked - rows:', Array.from(selectedRows));
       dispatch({ type: 'ARCHIVE_ROWS', payload: Array.from(selectedRows) });
       setSelectedRows(new Set());
     }
@@ -71,6 +72,7 @@ export function Spreadsheet() {
 
   const handleUnarchiveSelected = () => {
     if (selectedRows.size > 0) {
+      console.log('🔘 [UI] Unarchive button clicked - rows:', Array.from(selectedRows));
       dispatch({ type: 'UNARCHIVE_ROWS', payload: Array.from(selectedRows) });
       setSelectedRows(new Set());
     }

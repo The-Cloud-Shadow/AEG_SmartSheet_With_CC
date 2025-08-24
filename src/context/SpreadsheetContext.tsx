@@ -582,10 +582,14 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
 
   // Create enhanced dispatch that also syncs to Supabase
   const enhancedDispatch = useCallback((action: SpreadsheetAction) => {
+    console.log('🎯 [ENHANCED DISPATCH] Called with action:', action.type, action.payload);
     dispatch(action);
     
     // Only sync to Supabase after initial load and if not currently syncing from real-time
-    if (!isInitialized || isSyncing) return;
+    if (!isInitialized || isSyncing) {
+      console.log('🎯 [ENHANCED DISPATCH] Skipping sync - isInitialized:', isInitialized, 'isSyncing:', isSyncing);
+      return;
+    }
     
     // Sync specific changes to Supabase
     if (action.type === 'UPDATE_CELL') {
