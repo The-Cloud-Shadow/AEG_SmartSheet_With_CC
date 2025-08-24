@@ -121,8 +121,94 @@ function AppContent() {
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>AEG SmartSheet</h1>
+      <header style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+        padding: '0 24px',
+        height: '72px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        backdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '8px',
+            background: 'rgba(255, 255, 255, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            <img 
+              src="/alliance-logo.webp" 
+              alt="AEG Logo" 
+              style={{
+                width: '32px',
+                height: '32px',
+                objectFit: 'contain'
+              }}
+            />
+          </div>
+          <div>
+            <h1 style={{
+              margin: 0,
+              fontSize: '24px',
+              fontWeight: '700',
+              color: 'white',
+              letterSpacing: '-0.025em',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            }}>
+              AEG SmartSheet
+            </h1>
+            <p style={{
+              margin: 0,
+              fontSize: '14px',
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontWeight: '400'
+            }}>
+              Collaborative Spreadsheet Platform
+            </p>
+          </div>
+        </div>
+        
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <div style={{
+            padding: '8px 16px',
+            background: 'rgba(255, 255, 255, 0.15)',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            fontSize: '14px',
+            color: 'white',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <div style={{
+              width: '8px',
+              height: '8px',
+              background: '#10b981',
+              borderRadius: '50%',
+              boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)'
+            }}></div>
+            Live Sync
+          </div>
+        </div>
       </header>
       <main>
         {isLoading ? <LoadingScreen /> : <Spreadsheet />}

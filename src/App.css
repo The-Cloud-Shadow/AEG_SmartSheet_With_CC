@@ -17,21 +17,6 @@
   overflow: hidden;
 }
 
-.App-header {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-  padding: 20px 24px;
-  color: white;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.App-header h1 {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 600;
-  font-family: '"Inter", "Segoe UI", "Roboto", sans-serif';
-  letter-spacing: -0.025em;
-}
 
 main {
   padding: 0;

@@ -216,7 +216,7 @@ export function Spreadsheet() {
   const containerStyle: React.CSSProperties = {
     width: '100%',
     margin: '0 auto',
-    height: 'calc(100vh - 140px)',
+    height: 'calc(100vh - 180px)',
     overflow: 'auto',
     border: '1px solid #e2e8f0',
     backgroundColor: '#ffffff',
