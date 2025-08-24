@@ -93,6 +93,14 @@ export function Cell({ row, column, cellId }: CellProps) {
 
   const isReadOnly = column.readOnly; // Only read-only if explicitly locked
   const isFormulaCell = cell?.isFormula || column.type === 'formula';
+  
+  // Determine background color with proper priority
+  let backgroundColor = '#ffffff'; // default
+  if (isFormulaCell) backgroundColor = '#f3e5f5'; // formula cells
+  if (isReadOnly) backgroundColor = '#fafafa'; // read-only cells
+  if (isHovered && !isReadOnly && !isSelected) backgroundColor = '#f0f4ff'; // hover effect (only if not selected)
+  if (isSelected) backgroundColor = '#e3f2fd'; // selected takes highest priority
+  
   const cellStyle: React.CSSProperties = {
     border: '1px solid #e1e5e9',
     borderRight: '1px solid #e1e5e9',
@@ -102,8 +110,8 @@ export function Cell({ row, column, cellId }: CellProps) {
     minWidth: '120px',
     maxWidth: '200px',
     height: '36px',
-    backgroundColor: isSelected ? '#e3f2fd' : (isHovered && !isReadOnly ? '#f8f9ff' : (isReadOnly ? '#fafafa' : (isFormulaCell ? '#f3e5f5' : '#ffffff'))),
-    cursor: isReadOnly ? 'default' : 'default',
+    backgroundColor,
+    cursor: 'default',
     textDecoration: isArchived ? 'line-through' : 'none',
     opacity: isArchived ? 0.6 : 1,
     position: 'relative',
