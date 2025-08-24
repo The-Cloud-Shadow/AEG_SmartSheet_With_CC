@@ -610,6 +610,7 @@ function spreadsheetReducer(state: SpreadsheetState, action: SpreadsheetAction):
 interface SpreadsheetContextType {
   state: SpreadsheetState;
   dispatch: React.Dispatch<SpreadsheetAction>;
+  isLoading: boolean;
 }
 
 const SpreadsheetContext = createContext<SpreadsheetContextType | undefined>(undefined);
@@ -618,7 +619,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(spreadsheetReducer, initialState);
 
   // Enable real-time sync with Supabase
-  const { isInitialized, isSyncing, syncCell, syncColumn, syncDeleteColumn, syncArchivedRows } = useRealTimeSync({ state, dispatch });
+  const { isInitialized, isLoading, isSyncing, syncCell, syncColumn, syncDeleteColumn, syncArchivedRows } = useRealTimeSync({ state, dispatch });
 
   // Create enhanced dispatch that also syncs to Supabase
   const enhancedDispatch = useCallback((action: SpreadsheetAction) => {
@@ -731,7 +732,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
   }, [isInitialized, isSyncing, syncCell, syncColumn, syncDeleteColumn, syncArchivedRows, state.archivedRows, state.columns]);
 
   return (
-    <SpreadsheetContext.Provider value={{ state, dispatch: enhancedDispatch }}>
+    <SpreadsheetContext.Provider value={{ state, dispatch: enhancedDispatch, isLoading }}>
       {children}
     </SpreadsheetContext.Provider>
   );

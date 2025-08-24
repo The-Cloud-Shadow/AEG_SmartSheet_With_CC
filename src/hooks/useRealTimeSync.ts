@@ -10,6 +10,7 @@ interface UseRealTimeSyncProps {
 
 export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSyncProps) {
   const isInitialized = useRef(false);
+  const isLoading = useRef(true);
   const isSyncing = useRef(false);
   const lastSyncTime = useRef(0);
 
@@ -105,10 +106,12 @@ export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSy
 
       isSyncing.current = false;
       isInitialized.current = true;
+      isLoading.current = false;
       
     } catch (error) {
       console.error('Error in loadInitialData:', error);
       isSyncing.current = false;
+      isLoading.current = false;
     }
   }, [sheetId, dispatch, dbCellToAppCell, dbColumnToAppColumn]);
 
@@ -432,6 +435,7 @@ export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSy
 
   return {
     isInitialized: isInitialized.current,
+    isLoading: isLoading.current,
     isSyncing: isSyncing.current,
     syncCell: syncCellUpdate,
     syncColumn: syncColumnUpdate,
