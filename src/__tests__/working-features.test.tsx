@@ -155,7 +155,7 @@ describe('AEG SmartSheet - Automated Feature Tests', () => {
     it('has add column functionality', async () => {
       renderWithProvider(<Spreadsheet />)
       
-      expect(screen.getByText('Add Column')).toBeInTheDocument()
+      expect(screen.getByText('+ Add Column')).toBeInTheDocument()
     })
 
     it('supports different column types', async () => {
@@ -192,7 +192,7 @@ describe('AEG SmartSheet - Automated Feature Tests', () => {
     it('has column management controls', async () => {
       renderWithProvider(<Spreadsheet />)
       
-      expect(screen.getByText('Add Column')).toBeInTheDocument()
+      expect(screen.getByText('+ Add Column')).toBeInTheDocument()
       expect(screen.getByText(/Hide.*Archived Rows/)).toBeInTheDocument()
     })
   })
