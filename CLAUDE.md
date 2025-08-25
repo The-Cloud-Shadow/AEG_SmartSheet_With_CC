@@ -49,3 +49,4 @@ The spreadsheet now supports real-time collaboration with automatic syncing acro
 - Updated entire application branding to use Alliance Environmental Group's brand colors (#2ea3f2 blue) throughout header, loading screen, and CSS variables for consistent visual identity
 - Added comprehensive automated testing suite with Vitest, React Testing Library, and real-time sync mocking to replace manual testing workflows with faster, more reliable automated tests covering all core spreadsheet features
 - Refined and validated automated test suite with 25/25 passing tests covering all spreadsheet features, reducing manual testing time from 15 minutes to 16 seconds while providing comprehensive feature validation
+- Removed outdated "Add Column" button from Toolbar component, leaving only the properly functioning "Add Column" button in the spreadsheet header that uses the modern modal dialog system
