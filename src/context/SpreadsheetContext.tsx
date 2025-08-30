@@ -477,9 +477,11 @@ function spreadsheetReducer(
     }
 
     case "DELETE_SELECTED_CELLS": {
+      console.log("🗑️ [REDUCER] DELETE_SELECTED_CELLS - selected cells:", Array.from(state.selectedCells));
       const newCells = { ...state.cells };
       state.selectedCells.forEach((cellId) => {
         if (newCells[cellId]) {
+          console.log(`🗑️ [REDUCER] Clearing cell ${cellId}: "${newCells[cellId].value}"`);
           newCells[cellId] = { ...newCells[cellId], value: "" };
         }
       });
@@ -488,6 +490,7 @@ function spreadsheetReducer(
         cells: newCells,
         selectedCells: new Set<string>(),
       };
+      console.log("🗑️ [REDUCER] DELETE_SELECTED_CELLS - completed");
       saveToStorage(newState);
       return saveToHistory(newState);
     }
@@ -505,30 +508,38 @@ function spreadsheetReducer(
     }
 
     case "UNDO": {
+      console.log("↶ [REDUCER] UNDO - current historyIndex:", state.historyIndex, "history length:", state.history.length);
       if (state.historyIndex >= 0) {
         const previousState = state.history[state.historyIndex];
+        console.log("↶ [REDUCER] UNDO - restoring to history index:", state.historyIndex);
         const restoredState = {
           ...previousState,
           history: state.history,
           historyIndex: state.historyIndex - 1,
         };
+        console.log("↶ [REDUCER] UNDO - new historyIndex:", restoredState.historyIndex);
         saveToStorage(restoredState);
         return restoredState;
       }
+      console.log("↶ [REDUCER] UNDO - cannot undo, already at beginning");
       return state;
     }
 
     case "REDO": {
+      console.log("↷ [REDUCER] REDO - current historyIndex:", state.historyIndex, "history length:", state.history.length);
       if (state.historyIndex < state.history.length - 1) {
         const nextState = state.history[state.historyIndex + 1];
+        console.log("↷ [REDUCER] REDO - restoring to history index:", state.historyIndex + 1);
         const restoredState = {
           ...nextState,
           history: state.history,
           historyIndex: state.historyIndex + 1,
         };
+        console.log("↷ [REDUCER] REDO - new historyIndex:", restoredState.historyIndex);
         saveToStorage(restoredState);
         return restoredState;
       }
+      console.log("↷ [REDUCER] REDO - cannot redo, already at end");
       return state;
     }
 
@@ -730,9 +741,10 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
         );
       }
 
-      // Store current state before dispatch for undo/redo comparison
-      const previousState = state;
+      // Store current state before dispatch for undo/redo comparison and sync operations
+      const currentStateBeforeDispatch = { ...state };
 
+      // Perform the action first
       dispatch(action);
 
       // Only sync to Supabase after initial load
@@ -743,7 +755,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
           action.type === "UNARCHIVE_ROWS"
         ) {
           console.log(
-            "🎯 [ENHANCED DISPATCH] Skipping sync - not initialized yet"
+            " [ENHANCED DISPATCH] Skipping sync - not initialized yet"
           );
         }
         return;
@@ -759,12 +771,13 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
         "TOGGLE_COLUMN_LOCK",
         "ADD_COLUMN",
         "DELETE_COLUMN",
+        "DELETE_SELECTED_CELLS",
         "UNDO",
         "REDO",
       ];
       if (isSyncing && !userInitiatedActions.includes(action.type)) {
         console.log(
-          "🎯 [ENHANCED DISPATCH] Skipping sync - currently syncing and not a user-initiated action"
+          " [ENHANCED DISPATCH] Skipping sync - currently syncing and not a user-initiated action"
         );
         return;
       }
@@ -784,43 +797,46 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
           };
           syncCell(cell);
         }
+      } else if (action.type === "DELETE_SELECTED_CELLS") {
+        // Sync deleted cells to Supabase
+        console.log("🔄 [ENHANCED DISPATCH] DELETE_SELECTED_CELLS - syncing deleted cells to Supabase");
+        currentStateBeforeDispatch.selectedCells.forEach((cellId) => {
+          const [, column, row] = cellId.match(/^([A-Z]+)(\d+)$/) || [];
+          if (column && row) {
+            const emptyCell = {
+              id: cellId,
+              value: "",
+              row: parseInt(row),
+              column,
+            };
+            console.log(`🔄 [ENHANCED DISPATCH] Syncing empty cell ${cellId} to Supabase`);
+            syncCell(emptyCell);
+          }
+        });
       } else if (
         action.type === "ARCHIVE_ROWS" ||
         action.type === "UNARCHIVE_ROWS"
       ) {
-        // Sync archived rows after the state update with the NEW state
-        console.log(
-          `🎯 [CONTEXT] Processing ${action.type} action with rows:`,
-          action.payload
-        );
-
+        // Sync archived rows after the state update
         setTimeout(() => {
-          // Get the updated archived rows after the action
-          let newArchivedRows: Set<number>;
-          if (action.type === "ARCHIVE_ROWS") {
-            newArchivedRows = new Set([
-              ...state.archivedRows,
-              ...action.payload,
-            ]);
-          } else {
-            newArchivedRows = new Set(state.archivedRows);
-            action.payload.forEach((row) => newArchivedRows.delete(row));
-          }
+          const newArchivedRows = action.type === "ARCHIVE_ROWS"
+            ? new Set([...currentStateBeforeDispatch.archivedRows, ...action.payload])
+            : (() => {
+                const result = new Set(currentStateBeforeDispatch.archivedRows);
+                action.payload.forEach((row: number) => result.delete(row));
+                return result;
+              })();
 
           console.log(
-            "🚀 [CONTEXT] Syncing archived rows:",
+            " [CONTEXT] Processing ${action.type} action with rows:",
+            action.payload
+          );
+          console.log(
+            " [CONTEXT] Syncing archived rows:",
             Array.from(newArchivedRows)
           );
 
-          if (isInitialized) {
-            // Always sync user-initiated archiving actions, regardless of real-time sync status
-            console.log(
-              "✅ [CONTEXT] Proceeding with archive sync (user-initiated)"
-            );
-            syncArchivedRows(newArchivedRows, true); // forceSync=true for user actions
-          } else {
-            console.log("⏭️ [CONTEXT] Skipping sync - not initialized yet");
-          }
+          syncArchivedRows(newArchivedRows, true); // forceSync=true for user actions
         }, 0);
       } else if (
         action.type === "SET_COLUMN_FORMULA" ||
@@ -844,47 +860,23 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
             const column = state.columns[columnIndex];
             if (column) syncColumn(column, columnIndex);
           } else if (action.type === "RENAME_COLUMN") {
-            console.log(
-              "🔄 [SYNC] RENAME_COLUMN - finding column in current state:",
-              action.payload.columnId
-            );
-            console.log(
-              "🔄 [SYNC] RENAME_COLUMN - current state columns:",
-              state.columns.map((col) => `${col.id}: ${col.label}`)
-            );
-
             const columnIndex = state.columns.findIndex(
               (col) => col.id === action.payload.columnId
             );
-            console.log(
-              "🔄 [SYNC] RENAME_COLUMN - found column at index:",
-              columnIndex
-            );
-
             if (columnIndex >= 0) {
-              // Create the updated column with the new label since the state hasn't been updated yet
               const updatedColumn = {
                 ...state.columns[columnIndex],
                 label: action.payload.newLabel,
               };
-              console.log(
-                "🔄 [SYNC] RENAME_COLUMN - syncing updated column:",
-                updatedColumn
-              );
               syncColumn(updatedColumn, columnIndex);
-            } else {
-              console.error("🔄 [SYNC] RENAME_COLUMN - column not found!");
             }
           } else if (action.type === "ADD_COLUMN") {
             const newColumn = action.payload;
-            const newColumnIndex = state.columns.length; // Will be the last position
+            const newColumnIndex = state.columns.length - 1; // Already added
             syncColumn(newColumn, newColumnIndex);
           } else if (action.type === "DELETE_COLUMN") {
-            // For delete, we need to sync all remaining columns to update their positions
-            const newColumns = state.columns.filter(
-              (col) => col.id !== action.payload.columnId
-            );
-            newColumns.forEach((column, index) => {
+            // For delete, sync all remaining columns to update their positions
+            state.columns.forEach((column, index) => {
               syncColumn(column, index);
             });
             // Also need to delete the column from Supabase
@@ -893,13 +885,12 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
         }, 0);
       } else if (action.type === "UNDO" || action.type === "REDO") {
         // Handle undo/redo by comparing the current state with the state after the action
+        console.log(`🔄 [ENHANCED DISPATCH] ${action.type} - handling undo/redo sync`);
         setTimeout(() => {
-          // Access the updated state through the provider's state reference
-          // We need to compare what changed and sync accordingly
-
-          // Compare columns - if columns changed, sync all columns
+          console.log(`🔄 [ENHANCED DISPATCH] ${action.type} - executing sync timeout`);
+          // Compare with the state before the undo/redo action
           const columnsChanged =
-            JSON.stringify(previousState.columns) !==
+            JSON.stringify(currentStateBeforeDispatch.columns) !==
             JSON.stringify(state.columns);
           if (columnsChanged) {
             console.log("🔄 [UNDO/REDO] Columns changed, syncing all columns");
@@ -907,15 +898,14 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
               syncColumn(column, index);
             });
 
-            // Check if any columns were deleted by comparing column IDs
+            // Check if any columns were deleted
             const previousColumnIds = new Set(
-              previousState.columns.map((col) => col.id)
+              currentStateBeforeDispatch.columns.map((col) => col.id)
             );
             const currentColumnIds = new Set(
               state.columns.map((col) => col.id)
             );
 
-            // If a column was removed, we need to delete it from Supabase
             for (const prevId of previousColumnIds) {
               if (!currentColumnIds.has(prevId)) {
                 console.log("🔄 [UNDO/REDO] Column deleted:", prevId);
@@ -926,7 +916,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
 
           // Compare archived rows
           const archivedRowsChanged =
-            JSON.stringify(Array.from(previousState.archivedRows).sort()) !==
+            JSON.stringify(Array.from(currentStateBeforeDispatch.archivedRows).sort()) !==
             JSON.stringify(Array.from(state.archivedRows).sort());
           if (archivedRowsChanged) {
             console.log("🔄 [UNDO/REDO] Archived rows changed, syncing");
@@ -935,13 +925,11 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
 
           // Compare cells - sync changed cells
           const cellsChanged =
-            JSON.stringify(previousState.cells) !== JSON.stringify(state.cells);
+            JSON.stringify(currentStateBeforeDispatch.cells) !== JSON.stringify(state.cells);
           if (cellsChanged) {
             console.log("🔄 [UNDO/REDO] Cells changed, syncing affected cells");
-            // For now, we could sync all cells or implement a more sophisticated diff
-            // But since cell changes are usually small, we can sync changed cells
             Object.values(state.cells).forEach((cell) => {
-              const prevCell = previousState.cells[cell.id];
+              const prevCell = currentStateBeforeDispatch.cells[cell.id];
               if (
                 !prevCell ||
                 prevCell.value !== cell.value ||
@@ -952,9 +940,8 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
             });
 
             // Also check for deleted cells
-            Object.keys(previousState.cells).forEach((cellId) => {
+            Object.keys(currentStateBeforeDispatch.cells).forEach((cellId) => {
               if (!state.cells[cellId]) {
-                // Cell was deleted, sync empty cell
                 const match = cellId.match(/^([A-Z]+)(\d+)$/);
                 if (match) {
                   const [, column, row] = match;

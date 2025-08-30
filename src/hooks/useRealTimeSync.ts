@@ -13,6 +13,8 @@ export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSy
   const isLoading = useRef(true);
   const isSyncing = useRef(false);
   const lastSyncTime = useRef(0);
+  // Track per-cell last local write to ignore stale realtime
+  const lastLocalCellWrite = useRef<Record<string, number>>({});
 
   // Convert database cell to app cell format
   const dbCellToAppCell = useCallback((dbCell: DatabaseCellData): CellData => ({
@@ -117,20 +119,36 @@ export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSy
 
   // Sync cell updates to Supabase
   const syncCellUpdate = useCallback(async (cell: CellData) => {
-    if (isSyncing.current) return;
-    
+    // Debounce our own realtime echo for a short window
+    if (isSyncing.current) {
+      console.log('🔄 [SYNC CELL] Skipping sync - currently syncing');
+      return;
+    }
+
     try {
       const dbCell = appCellToDbCell(cell, sheetId);
-      
+
+      // Mark that we're syncing to avoid processing our own echo
+      isSyncing.current = true;
+      const now = Date.now();
+      lastSyncTime.current = now;
+      lastLocalCellWrite.current[dbCell.id] = now;
+
       const { error } = await supabase
         .from('cells')
         .upsert(dbCell, { onConflict: 'id' });
 
       if (error) {
-        console.error('Error syncing cell update:', error);
+        console.error('❌ [SYNC CELL] Error syncing cell update:', error);
       }
     } catch (error) {
-      console.error('Error in syncCellUpdate:', error);
+      console.error('❌ [SYNC CELL] Error in syncCellUpdate:', error);
+    } finally {
+      // Give realtime a brief moment to deliver our own echo, then clear flag
+      setTimeout(() => {
+        isSyncing.current = false;
+        console.log('✅ [SYNC CELL] Cleared syncing flag');
+      }, 150);
     }
   }, [sheetId, appCellToDbCell]);
 
@@ -300,14 +318,35 @@ export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSy
           filter: `sheet_id=eq.${sheetId}` 
         },
         (payload) => {
-          // Skip if this change came from our own update
+          // Skip if this change likely came from our own very recent update
+          // Use both an explicit syncing flag and commit timestamp check
           if (isSyncing.current) {
+            console.log('⏭️ [CELLS REALTIME] Skipping due to isSyncing flag');
             return;
           }
-          
+
+          // Some payloads include commit_timestamp as an ISO string
+          const commitTs = (payload as any).commit_timestamp as string | undefined;
+          if (commitTs) {
+            const eventTime = new Date(commitTs).getTime();
+            const delta = Math.abs(eventTime - lastSyncTime.current);
+            if (delta < 300) {
+              console.log('⏭️ [CELLS REALTIME] Skipping own echo within', delta, 'ms');
+              return;
+            }
+          }
+
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const dbCell = payload.new as DatabaseCellData;
             const cell = dbCellToAppCell(dbCell);
+            const cellLastLocal = lastLocalCellWrite.current[cell.id] || 0;
+            const commitTs = (payload as any).commit_timestamp as string | undefined;
+            const eventTime = commitTs ? new Date(commitTs).getTime() : Date.now();
+            const deltaFromLocal = eventTime - cellLastLocal;
+            if (cellLastLocal && deltaFromLocal <= 0) {
+              console.log('⏭️ [CELLS REALTIME] Skipping stale event for cell', cell.id, 'eventTime:', eventTime, 'lastLocal:', cellLastLocal);
+              return;
+            }
             
             // Temporarily set syncing to prevent loops
             isSyncing.current = true;
