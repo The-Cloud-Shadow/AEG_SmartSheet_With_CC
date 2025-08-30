@@ -351,7 +351,7 @@ export function useRealTimeSync({ dispatch, sheetId = 'default' }: UseRealTimeSy
             // Temporarily set syncing to prevent loops
             isSyncing.current = true;
             dispatch({ 
-              type: 'UPDATE_CELL', 
+              type: 'UPDATE_CELL_EXTERNAL', 
               payload: { 
                 cellId: cell.id, 
                 value: cell.value, 

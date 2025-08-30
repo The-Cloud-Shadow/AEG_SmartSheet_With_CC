@@ -29,6 +29,7 @@ export interface SpreadsheetState {
 
 export type SpreadsheetAction =
   | { type: 'UPDATE_CELL'; payload: { cellId: string; value: string; formula?: string; isFormula?: boolean } }
+  | { type: 'UPDATE_CELL_EXTERNAL'; payload: { cellId: string; value: string; formula?: string; isFormula?: boolean } }
   | { type: 'ARCHIVE_ROWS'; payload: number[] }
   | { type: 'UNARCHIVE_ROWS'; payload: number[] }
   | { type: 'SORT_BY_COLUMN'; payload: { column: string; ascending: boolean } }

@@ -11,10 +11,21 @@ export function Toolbar() {
   };
 
   const handleUndo = () => {
+    // If editing, stop editing first to avoid blur committing a new value
+    if (state.editingCell) {
+      dispatch({ type: 'STOP_EDITING_CELL' });
+      setTimeout(() => dispatch({ type: 'UNDO' }), 0);
+      return;
+    }
     dispatch({ type: 'UNDO' });
   };
 
   const handleRedo = () => {
+    if (state.editingCell) {
+      dispatch({ type: 'STOP_EDITING_CELL' });
+      setTimeout(() => dispatch({ type: 'REDO' }), 0);
+      return;
+    }
     dispatch({ type: 'REDO' });
   };
 
@@ -23,7 +34,8 @@ export function Toolbar() {
     dispatch({ type: 'TOGGLE_ARCHIVED_ROWS_VISIBILITY' });
   };
 
-  const canUndo = state.historyIndex >= 0;
+  // With initial state seeded at index 0, only enable Undo after at least one user edit
+  const canUndo = state.historyIndex > 0;
   const canRedo = state.historyIndex < state.history.length - 1;
 
   const toolbarStyle: React.CSSProperties = {
@@ -62,6 +74,7 @@ export function Toolbar() {
     <div style={toolbarStyle}>
       <button
         style={canUndo ? buttonStyle : disabledButtonStyle}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={handleUndo}
         disabled={!canUndo}
       >
@@ -69,6 +82,7 @@ export function Toolbar() {
       </button>
       <button
         style={canRedo ? buttonStyle : disabledButtonStyle}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={handleRedo}
         disabled={!canRedo}
       >

@@ -3,6 +3,8 @@ import React, {
   useContext,
   useReducer,
   useCallback,
+  useRef,
+  useEffect,
   ReactNode,
 } from "react";
 import {
@@ -12,6 +14,12 @@ import {
   CellData,
 } from "../types";
 import { useRealTimeSync } from "../hooks/useRealTimeSync";
+
+// Toggle debug logging centrally
+const DEBUG_LOGS = false;
+const dlog = (...args: any[]) => {
+  if (!DEBUG_LOGS) console.log(...args);
+};
 
 const initialColumns: ColumnConfig[] = [
   { id: "A", label: "Column A", type: "number" },
@@ -277,7 +285,13 @@ const loadFromStorage = (): SpreadsheetState => {
   };
 };
 
-const initialState: SpreadsheetState = loadFromStorage();
+const initialStateUnseeded: SpreadsheetState = loadFromStorage();
+// Seed initial snapshot so first UNDO goes back to initial state and REDO can move forward
+const initialState: SpreadsheetState = {
+  ...initialStateUnseeded,
+  history: [{ ...initialStateUnseeded }],
+  historyIndex: 0,
+};
 
 // Save data to localStorage
 const saveToStorage = (state: SpreadsheetState) => {
@@ -300,6 +314,7 @@ function spreadsheetReducer(
 ): SpreadsheetState {
   const saveToHistory = (newState: SpreadsheetState): SpreadsheetState => {
     const newHistory = state.history.slice(0, state.historyIndex + 1);
+    // Store the POST-CHANGE snapshot so REDO can move forward to it
     newHistory.push({ ...newState });
     return {
       ...newState,
@@ -355,6 +370,39 @@ function spreadsheetReducer(
   };
 
   switch (action.type) {
+    case "UPDATE_CELL_EXTERNAL": {
+      const { cellId, value, formula, isFormula } = action.payload;
+      const cellMatch = cellId.match(/^([A-Z]+)(\d+)$/);
+      if (!cellMatch) return state;
+
+      const [, column, row] = cellMatch;
+      const newCells = { ...state.cells };
+
+      // If it's a formula cell, calculate the result
+      let calculatedValue = value;
+      if (isFormula && formula) {
+        calculatedValue =
+          calculateCellFormula(formula, parseInt(row), newCells) || value;
+      }
+
+      newCells[cellId] = {
+        id: cellId,
+        value: calculatedValue,
+        formula,
+        isFormula,
+        row: parseInt(row),
+        column,
+      };
+
+      // Recalculate formulas after cell update
+      const cellsWithFormulas = calculateFormulas(newCells, state.columns);
+
+      const newState = { ...state, cells: cellsWithFormulas };
+      // Persist but do NOT push to history (external update)
+      saveToStorage(newState);
+      return newState;
+    }
+
     case "UPDATE_CELL": {
       const { cellId, value, formula, isFormula } = action.payload;
       const cellMatch = cellId.match(/^([A-Z]+)(\d+)$/);
@@ -477,11 +525,16 @@ function spreadsheetReducer(
     }
 
     case "DELETE_SELECTED_CELLS": {
-      console.log("🗑️ [REDUCER] DELETE_SELECTED_CELLS - selected cells:", Array.from(state.selectedCells));
+      console.log(
+        "🗑️ [REDUCER] DELETE_SELECTED_CELLS - selected cells:",
+        Array.from(state.selectedCells)
+      );
       const newCells = { ...state.cells };
       state.selectedCells.forEach((cellId) => {
         if (newCells[cellId]) {
-          console.log(`🗑️ [REDUCER] Clearing cell ${cellId}: "${newCells[cellId].value}"`);
+          console.log(
+            `🗑️ [REDUCER] Clearing cell ${cellId}: "${newCells[cellId].value}"`
+          );
           newCells[cellId] = { ...newCells[cellId], value: "" };
         }
       });
@@ -508,16 +561,29 @@ function spreadsheetReducer(
     }
 
     case "UNDO": {
-      console.log("↶ [REDUCER] UNDO - current historyIndex:", state.historyIndex, "history length:", state.history.length);
-      if (state.historyIndex >= 0) {
-        const previousState = state.history[state.historyIndex];
-        console.log("↶ [REDUCER] UNDO - restoring to history index:", state.historyIndex);
+      console.log(
+        "↶ [REDUCER] UNDO - current historyIndex:",
+        state.historyIndex,
+        "history length:",
+        state.history.length
+      );
+      // With seeded initial state at index 0, only undo when index > 0
+      if (state.historyIndex > 0) {
+        const targetIndex = state.historyIndex - 1;
+        const previousState = state.history[targetIndex];
+        console.log(
+          "↶ [REDUCER] UNDO - restoring to history index:",
+          targetIndex
+        );
         const restoredState = {
           ...previousState,
           history: state.history,
-          historyIndex: state.historyIndex - 1,
+          historyIndex: targetIndex,
         };
-        console.log("↶ [REDUCER] UNDO - new historyIndex:", restoredState.historyIndex);
+        console.log(
+          "↶ [REDUCER] UNDO - new historyIndex:",
+          restoredState.historyIndex
+        );
         saveToStorage(restoredState);
         return restoredState;
       }
@@ -526,16 +592,27 @@ function spreadsheetReducer(
     }
 
     case "REDO": {
-      console.log("↷ [REDUCER] REDO - current historyIndex:", state.historyIndex, "history length:", state.history.length);
+      console.log(
+        "↷ [REDUCER] REDO - current historyIndex:",
+        state.historyIndex,
+        "history length:",
+        state.history.length
+      );
       if (state.historyIndex < state.history.length - 1) {
         const nextState = state.history[state.historyIndex + 1];
-        console.log("↷ [REDUCER] REDO - restoring to history index:", state.historyIndex + 1);
+        console.log(
+          "↷ [REDUCER] REDO - restoring to history index:",
+          state.historyIndex + 1
+        );
         const restoredState = {
           ...nextState,
           history: state.history,
           historyIndex: state.historyIndex + 1,
         };
-        console.log("↷ [REDUCER] REDO - new historyIndex:", restoredState.historyIndex);
+        console.log(
+          "↷ [REDUCER] REDO - new historyIndex:",
+          restoredState.historyIndex
+        );
         saveToStorage(restoredState);
         return restoredState;
       }
@@ -714,6 +791,12 @@ const SpreadsheetContext = createContext<SpreadsheetContextType | undefined>(
 export function SpreadsheetProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(spreadsheetReducer, initialState);
 
+  // Keep a ref of the latest state for async comparisons (e.g., UNDO/REDO sync)
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // Enable real-time sync with Supabase
   const {
     isInitialized,
@@ -728,17 +811,13 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
   // Create enhanced dispatch that also syncs to Supabase
   const enhancedDispatch = useCallback(
     (action: SpreadsheetAction) => {
-      // Only log archiving-related actions and column rename actions
+      // Reduced logs
       if (
         action.type === "ARCHIVE_ROWS" ||
         action.type === "UNARCHIVE_ROWS" ||
         action.type === "RENAME_COLUMN"
       ) {
-        console.log(
-          "🎯 [ENHANCED DISPATCH] Called with action:",
-          action.type,
-          action.payload
-        );
+        dlog("🎯 [ENHANCED DISPATCH]", action.type, action.payload);
       }
 
       // Store current state before dispatch for undo/redo comparison and sync operations
@@ -750,14 +829,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
       // Only sync to Supabase after initial load
       // Note: Don't block user-initiated archiving actions due to real-time sync status
       if (!isInitialized) {
-        if (
-          action.type === "ARCHIVE_ROWS" ||
-          action.type === "UNARCHIVE_ROWS"
-        ) {
-          console.log(
-            " [ENHANCED DISPATCH] Skipping sync - not initialized yet"
-          );
-        }
+        dlog("[ENHANCED DISPATCH] Skipping sync - not initialized yet");
         return;
       }
 
@@ -776,16 +848,17 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
         "REDO",
       ];
       if (isSyncing && !userInitiatedActions.includes(action.type)) {
-        console.log(
-          " [ENHANCED DISPATCH] Skipping sync - currently syncing and not a user-initiated action"
+        dlog(
+          "[ENHANCED DISPATCH] Skipping sync - currently syncing and not a user-initiated action"
         );
         return;
       }
 
       // Sync specific changes to Supabase
       if (action.type === "UPDATE_CELL") {
-        const { cellId, value, formula, isFormula } = action.payload;
-        const [, column, row] = cellId.match(/^([A-Z]+)(\d+)$/) || [];
+        const { cellId, value, formula, isFormula } = action.payload as any;
+        const [, column, row] =
+          (cellId as string).match(/^([A-Z]+)(\d+)$/) || [];
         if (column && row) {
           const cell = {
             id: cellId,
@@ -795,13 +868,16 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
             row: parseInt(row),
             column,
           };
-          syncCell(cell);
+          syncCell(cell as any);
         }
       } else if (action.type === "DELETE_SELECTED_CELLS") {
         // Sync deleted cells to Supabase
-        console.log("🔄 [ENHANCED DISPATCH] DELETE_SELECTED_CELLS - syncing deleted cells to Supabase");
+        dlog(
+          "🔄 [ENHANCED DISPATCH] DELETE_SELECTED_CELLS - syncing deleted cells to Supabase"
+        );
         currentStateBeforeDispatch.selectedCells.forEach((cellId) => {
-          const [, column, row] = cellId.match(/^([A-Z]+)(\d+)$/) || [];
+          const [, column, row] =
+            (cellId as string).match(/^([A-Z]+)(\d+)$/) || [];
           if (column && row) {
             const emptyCell = {
               id: cellId,
@@ -809,8 +885,10 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
               row: parseInt(row),
               column,
             };
-            console.log(`🔄 [ENHANCED DISPATCH] Syncing empty cell ${cellId} to Supabase`);
-            syncCell(emptyCell);
+            dlog(
+              `🔄 [ENHANCED DISPATCH] Syncing empty cell ${cellId} to Supabase`
+            );
+            syncCell(emptyCell as any);
           }
         });
       } else if (
@@ -819,22 +897,29 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
       ) {
         // Sync archived rows after the state update
         setTimeout(() => {
-          const newArchivedRows = action.type === "ARCHIVE_ROWS"
-            ? new Set([...currentStateBeforeDispatch.archivedRows, ...action.payload])
-            : (() => {
-                const result = new Set(currentStateBeforeDispatch.archivedRows);
-                action.payload.forEach((row: number) => result.delete(row));
-                return result;
-              })();
+          const newArchivedRows =
+            action.type === "ARCHIVE_ROWS"
+              ? new Set([
+                  ...currentStateBeforeDispatch.archivedRows,
+                  ...(action as any).payload,
+                ])
+              : (() => {
+                  const result = new Set(
+                    currentStateBeforeDispatch.archivedRows
+                  );
+                  (action as any).payload.forEach((row: number) =>
+                    result.delete(row)
+                  );
+                  return result;
+                })();
 
-          console.log(
-            " [CONTEXT] Processing ${action.type} action with rows:",
-            action.payload
+          dlog(
+            "[CONTEXT] Processing",
+            action.type,
+            "rows:",
+            (action as any).payload
           );
-          console.log(
-            " [CONTEXT] Syncing archived rows:",
-            Array.from(newArchivedRows)
-          );
+          dlog("[CONTEXT] Syncing archived rows:", Array.from(newArchivedRows));
 
           syncArchivedRows(newArchivedRows, true); // forceSync=true for user actions
         }, 0);
@@ -849,29 +934,29 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
         setTimeout(() => {
           if (action.type === "SET_COLUMN_FORMULA") {
             const columnIndex = state.columns.findIndex(
-              (col) => col.id === action.payload.columnId
+              (col) => col.id === (action as any).payload.columnId
             );
             const column = state.columns[columnIndex];
             if (column) syncColumn(column, columnIndex);
           } else if (action.type === "TOGGLE_COLUMN_LOCK") {
             const columnIndex = state.columns.findIndex(
-              (col) => col.id === action.payload.columnId
+              (col) => col.id === (action as any).payload.columnId
             );
             const column = state.columns[columnIndex];
             if (column) syncColumn(column, columnIndex);
           } else if (action.type === "RENAME_COLUMN") {
             const columnIndex = state.columns.findIndex(
-              (col) => col.id === action.payload.columnId
+              (col) => col.id === (action as any).payload.columnId
             );
             if (columnIndex >= 0) {
               const updatedColumn = {
                 ...state.columns[columnIndex],
-                label: action.payload.newLabel,
+                label: (action as any).payload.newLabel,
               };
               syncColumn(updatedColumn, columnIndex);
             }
           } else if (action.type === "ADD_COLUMN") {
-            const newColumn = action.payload;
+            const newColumn = (action as any).payload;
             const newColumnIndex = state.columns.length - 1; // Already added
             syncColumn(newColumn, newColumnIndex);
           } else if (action.type === "DELETE_COLUMN") {
@@ -880,21 +965,25 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
               syncColumn(column, index);
             });
             // Also need to delete the column from Supabase
-            syncDeleteColumn(action.payload.columnId);
+            syncDeleteColumn((action as any).payload.columnId);
           }
         }, 0);
       } else if (action.type === "UNDO" || action.type === "REDO") {
         // Handle undo/redo by comparing the current state with the state after the action
-        console.log(`🔄 [ENHANCED DISPATCH] ${action.type} - handling undo/redo sync`);
+        dlog(`🔄 [ENHANCED DISPATCH] ${action.type} - handling undo/redo sync`);
         setTimeout(() => {
-          console.log(`🔄 [ENHANCED DISPATCH] ${action.type} - executing sync timeout`);
+          dlog(
+            `🔄 [ENHANCED DISPATCH] ${action.type} - executing sync timeout`
+          );
+          const postState = stateRef.current;
+
           // Compare with the state before the undo/redo action
           const columnsChanged =
             JSON.stringify(currentStateBeforeDispatch.columns) !==
-            JSON.stringify(state.columns);
+            JSON.stringify(postState.columns);
           if (columnsChanged) {
-            console.log("🔄 [UNDO/REDO] Columns changed, syncing all columns");
-            state.columns.forEach((column, index) => {
+            dlog("🔄 [UNDO/REDO] Columns changed, syncing all columns");
+            postState.columns.forEach((column, index) => {
               syncColumn(column, index);
             });
 
@@ -903,7 +992,7 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
               currentStateBeforeDispatch.columns.map((col) => col.id)
             );
             const currentColumnIds = new Set(
-              state.columns.map((col) => col.id)
+              postState.columns.map((col) => col.id)
             );
 
             for (const prevId of previousColumnIds) {
@@ -916,42 +1005,42 @@ export function SpreadsheetProvider({ children }: { children: ReactNode }) {
 
           // Compare archived rows
           const archivedRowsChanged =
-            JSON.stringify(Array.from(currentStateBeforeDispatch.archivedRows).sort()) !==
-            JSON.stringify(Array.from(state.archivedRows).sort());
+            JSON.stringify(
+              Array.from(currentStateBeforeDispatch.archivedRows).sort()
+            ) !== JSON.stringify(Array.from(postState.archivedRows).sort());
           if (archivedRowsChanged) {
             console.log("🔄 [UNDO/REDO] Archived rows changed, syncing");
-            syncArchivedRows(state.archivedRows, true);
+            syncArchivedRows(postState.archivedRows, true);
           }
 
           // Compare cells - sync changed cells
           const cellsChanged =
-            JSON.stringify(currentStateBeforeDispatch.cells) !== JSON.stringify(state.cells);
+            JSON.stringify(currentStateBeforeDispatch.cells) !==
+            JSON.stringify(postState.cells);
           if (cellsChanged) {
             console.log("🔄 [UNDO/REDO] Cells changed, syncing affected cells");
-            Object.values(state.cells).forEach((cell) => {
-              const prevCell = currentStateBeforeDispatch.cells[cell.id];
+            Object.values(postState.cells).forEach((cell) => {
+              const prev = currentStateBeforeDispatch.cells[cell.id];
               if (
-                !prevCell ||
-                prevCell.value !== cell.value ||
-                prevCell.formula !== cell.formula
+                !prev ||
+                prev.value !== cell.value ||
+                prev.formula !== cell.formula
               ) {
                 syncCell(cell);
               }
             });
 
-            // Also check for deleted cells
+            // Also handle deletions: cells present before but not after
             Object.keys(currentStateBeforeDispatch.cells).forEach((cellId) => {
-              if (!state.cells[cellId]) {
-                const match = cellId.match(/^([A-Z]+)(\d+)$/);
-                if (match) {
-                  const [, column, row] = match;
-                  const emptyCell = {
+              if (!postState.cells[cellId]) {
+                const [, column, row] = cellId.match(/^([A-Z]+)(\d+)$/) || [];
+                if (column && row) {
+                  syncCell({
                     id: cellId,
                     value: "",
                     row: parseInt(row),
                     column,
-                  };
-                  syncCell(emptyCell);
+                  });
                 }
               }
             });
