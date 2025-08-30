@@ -1,5 +1,7 @@
 import { SpreadsheetProvider, useSpreadsheet } from './context/SpreadsheetContext'
 import { Spreadsheet } from './components/Spreadsheet'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { LoginForm } from './components/LoginForm'
 import './App.css'
 
 function LoadingScreen() {
@@ -118,6 +120,15 @@ function LoadingScreen() {
 
 function AppContent() {
   const { isLoading } = useSpreadsheet();
+  const { user, loading, signOut } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen />
+  }
+
+  if (!user) {
+    return <LoginForm />
+  }
 
   return (
     <div className="App">
@@ -208,6 +219,24 @@ function AppContent() {
             }}></div>
             Live Sync
           </div>
+
+          {user && (
+            <button
+              onClick={() => signOut()}
+              style={{
+                padding: '8px 14px',
+                background: 'rgba(255, 255, 255, 0.9)',
+                color: '#1e7bb8',
+                border: '1px solid rgba(255, 255, 255, 0.6)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600 as any,
+                cursor: 'pointer'
+              }}
+            >
+              Sign Out
+            </button>
+          )}
         </div>
       </header>
       <main>
@@ -219,9 +248,11 @@ function AppContent() {
 
 function App() {
   return (
-    <SpreadsheetProvider>
-      <AppContent />
-    </SpreadsheetProvider>
+    <AuthProvider>
+      <SpreadsheetProvider>
+        <AppContent />
+      </SpreadsheetProvider>
+    </AuthProvider>
   )
 }
 
