@@ -1,17 +1,35 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 export function LoginForm() {
-  const { signIn, loading } = useAuth();
+  const { signIn, loading, isAuthorized, signOut, user, profile } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  // // Check authorization after user profile is loaded
+  useEffect(() => {
+    if (user && profile) {
+      console.log("User profile loaded:", profile);
+      console.log("User is authorized:", isAuthorized);
+      if (!isAuthorized) {
+        setError(
+          "Access denied. Only Smartsheet organization members can access this application."
+        );
+        // Sign out unauthorized users
+        signOut();
+      }
+    }
+  }, [user, profile, isAuthorized, signOut]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     const { error } = await signIn(email, password);
+    if (error) {
+      setError(error);
+    }
 
     if (error) {
       setError(error);

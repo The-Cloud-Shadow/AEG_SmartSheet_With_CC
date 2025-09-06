@@ -1,8 +1,11 @@
-import { SpreadsheetProvider, useSpreadsheet } from './context/SpreadsheetContext'
-import { Spreadsheet } from './components/Spreadsheet'
-import { AuthProvider, useAuth } from './context/AuthContext'
-import { LoginForm } from './components/LoginForm'
-import './index.css'
+import {
+  SpreadsheetProvider,
+  useSpreadsheet,
+} from "./context/SpreadsheetContext";
+import { Spreadsheet } from "./components/Spreadsheet";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { LoginForm } from "./components/LoginForm";
+import "./index.css";
 
 function LoadingScreen() {
   return (
@@ -47,15 +50,27 @@ function LoadingScreen() {
 
 function AppContent() {
   const { isLoading } = useSpreadsheet();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, isAuthorized } = useAuth();
 
   if (loading) {
     return <LoadingScreen />;
   }
 
-  if (!user) {
+  console.log("Is Authorized:", isAuthorized);
+
+  if (!user || !isAuthorized) {
     return <LoginForm />;
   }
+
+  // Check authorization - only allow access if user is from smartsheet org
+  // if (user && profile !== null && !isAuthorized) {
+  //   return <LoginForm />;
+  // }
+
+  // Show loading while profile is being fetched
+  // if (user && profile === null) {
+  //   return <LoadingScreen />;
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50">
