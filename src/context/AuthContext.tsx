@@ -35,7 +35,7 @@ interface AuthProviderProps {
 
 interface UserProfile {
   id: string;
-  org: string;
+  orgs: string[];
   email?: string;
   created_at?: string;
 }
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  const isAuthorized = user && profile?.org === "smartsheet";
+  const isAuthorized = user && profile?.orgs?.includes("smartsheet");
 
   const fetchUserProfile = async (userId: string) => {
     try {
