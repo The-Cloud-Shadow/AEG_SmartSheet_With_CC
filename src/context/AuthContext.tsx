@@ -46,7 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  const isAuthorized = user && profile?.orgs?.includes("smartsheet");
+  const isAuthorized = (user && profile?.orgs?.includes("smartsheet")) ?? false;
 
   const fetchUserProfile = async (userId: string) => {
     try {
