@@ -488,6 +488,13 @@ function spreadsheetReducer(
         const aValue = a[column]?.value || "";
         const bValue = b[column]?.value || "";
 
+        // Always push empty values to the bottom regardless of sort direction
+        const aEmpty = a[column] === undefined || aValue === "";
+        const bEmpty = b[column] === undefined || bValue === "";
+        if (aEmpty && bEmpty) return 0;
+        if (aEmpty && !bEmpty) return 1; // a after b
+        if (!aEmpty && bEmpty) return -1; // a before b
+
         // Try to parse as numbers for numeric comparison
         const aNum = parseFloat(aValue);
         const bNum = parseFloat(bValue);
